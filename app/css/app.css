@@ -1,148 +1,235 @@
-/* Encore — landscape music display.
-   Layout: full-bleed photo backdrop; artwork left, glass Now Playing panel right; clock top-left; settings slide in from the right.
-   Deliberately dark-only for Phase 1 (an ambient display); a light appearance arrives in Phase 4. */
+/* Encore — a full-screen photo frame with a Spotify widget.
+   Layers (back to front): photos (.backdrop) → corner slots holding the clock and the widget → nav/gear → modal/sheet.
+   Deliberately dark-only: an ambient display that sits over photographs. */
 :root{
   --bg:#07080a;
   --fg:#f5f5f7;
-  --fg-2:rgba(245,245,247,.74);
-  --fg-3:rgba(245,245,247,.50);
-  --fg-4:rgba(245,245,247,.22);
-  --hair:rgba(255,255,255,.10);
-  --glass:rgba(16,16,20,.34);
-  --glass-strong:rgba(22,22,26,.82);
-  --accent:#f5f5f7;
+  --fg-2:rgba(245,245,247,.78);
+  --fg-3:rgba(245,245,247,.56);
+  --fg-4:rgba(245,245,247,.24);
+  --hair:rgba(255,255,255,.14);
+  --glass-strong:rgba(22,22,26,.86);
+  --accent:#1ed760;             /* Spotify green, used sparingly (progress, active shuffle/repeat) */
   --danger:#ff6b5e;
+  /* One font family everywhere (the iPad's own SF Pro). Hierarchy comes from size, weight and brightness:
+     title (fg, 600) > artist (fg-2, 500) > album (fg-3, 400, smaller) > date (fg-3, 400, small). */
   --sans:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",system-ui,sans-serif;
-  --serif:"Instrument Serif","New York","Iowan Old Style",Georgia,serif;
-  --art:min(70vh,44vw);
   --ease:cubic-bezier(.22,.61,.36,1);
+  --edge:20px;                  /* safe margin from the screen edge */
+  --wall-fade:2s;
+  --wall-dim:.12;
+  --clock-scale:1;
   color-scheme:dark;
 }
-:root[data-art="m"]{--art:min(58vh,38vw)}
-:root[data-art="xl"]{--art:min(80vh,50vw)}
+:root.accent-white{--accent:#f5f5f7}
 
 *{box-sizing:border-box}
 html,body{height:100%}
-body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);overflow:hidden;
+/* touch-action:none lets our own code read horizontal swipes instead of the browser scrolling or going "back".
+   Scrollable panels (settings, pop-up) opt back in to vertical scrolling. */
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);overflow:hidden;touch-action:none;
   -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+.sheet,.modal{touch-action:pan-y}
 button{font:inherit;color:inherit}
 [hidden]{display:none!important}
 svg.stroke{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 svg.fill{fill:currentColor}
 :focus-visible{outline:2px solid var(--fg);outline-offset:3px}
 
-/* ---------- backdrop ---------- */
-/* Neutral backdrop until Cosmos wallpapers arrive (album art may not be blurred/cropped per Spotify's rules). */
+/* ---------- Layer 1: photos ---------- */
 .backdrop{position:fixed;inset:0;overflow:hidden;z-index:0;
   background:radial-gradient(90% 120% at 18% 30%,#23252c 0%,#121318 55%,var(--bg) 100%)}
-.scrim{position:absolute;inset:0;background:linear-gradient(rgba(0,0,0,.05),rgba(0,0,0,.35))}
+/* object-fit:cover fills the screen without stretching; object-position (set per photo) keeps the subject in frame */
+.wp-layer{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;opacity:0;
+  transition:opacity var(--wall-fade) ease-in-out}
+.wp-layer.on{opacity:1}
+.scrim{position:absolute;inset:0;pointer-events:none;background:rgba(0,0,0,var(--wall-dim))}
 
-/* ---------- corner clock + gear ---------- */
-.corner{position:fixed;z-index:2;top:calc(env(safe-area-inset-top,0px) + 22px);
-  left:max(28px,calc(env(safe-area-inset-left,0px) + 24px));pointer-events:none}
-.clock{font-weight:600;font-size:clamp(20px,2.4vw,30px);letter-spacing:-.01em;font-variant-numeric:tabular-nums;line-height:1}
-.today{margin-top:6px;font-family:var(--serif);font-style:italic;font-size:clamp(15px,1.7vw,21px);color:var(--fg-2)}
-.gear{position:fixed;z-index:3;top:calc(env(safe-area-inset-top,0px) + 16px);
-  right:max(20px,calc(env(safe-area-inset-right,0px) + 18px));width:44px;height:44px;border-radius:50%;
-  border:1px solid var(--hair);background:var(--glass);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);
-  display:grid;place-items:center;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .5s}
-.gear svg{width:20px;height:20px}
-body.ui .gear{opacity:1;pointer-events:auto}
+.empty-hint{position:fixed;z-index:1;left:50%;top:50%;transform:translate(-50%,-50%);width:min(440px,calc(100% - 32px));
+  text-align:center;padding:28px;border-radius:24px;background:rgba(16,16,20,.5);border:1px solid var(--hair);
+  -webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px)}
+.empty-hint h1{margin:0;font-size:24px;font-weight:650;letter-spacing:-.02em}
+.empty-hint p{color:var(--fg-2);line-height:1.5;margin:10px 0 18px}
 
-/* ---------- stage ---------- */
-.stage{position:relative;z-index:1;height:100%;display:grid;grid-template-columns:auto minmax(0,1fr);
-  align-items:center;gap:clamp(28px,4.5vw,72px);
-  padding-block:calc(env(safe-area-inset-top,0px) + 72px) calc(env(safe-area-inset-bottom,0px) + 40px);
-  padding-left:max(40px,calc(env(safe-area-inset-left,0px) + 32px));
-  padding-right:max(40px,calc(env(safe-area-inset-right,0px) + 32px));
-  max-width:1500px;margin:0 auto}
+/* ---------- Layer 2: corner slots ---------- */
+.slot{position:fixed;z-index:2;display:flex;flex-direction:column;gap:14px;pointer-events:none;max-width:calc(100% - 2 * var(--edge))}
+.slot > *{pointer-events:auto}
+.slot[data-corner^="t"]{top:calc(env(safe-area-inset-top,0px) + var(--edge))}
+/* Bottom corners sit above the mode dots (36 px row) so a wide widget can never cover them */
+.slot[data-corner^="b"]{bottom:calc(env(safe-area-inset-bottom,0px) + var(--edge) + 28px);justify-content:flex-end}
+.slot[data-corner$="l"]{left:max(var(--edge),calc(env(safe-area-inset-left,0px) + var(--edge)));align-items:flex-start}
+.slot[data-corner$="r"]{right:max(var(--edge),calc(env(safe-area-inset-right,0px) + var(--edge)));align-items:flex-end}
 
-/* artwork */
-/* Spotify design rule: artwork corners 8px on large screens; no cropping, overlays, zooming or distortion. */
-.art-wrap{position:relative;width:var(--art);max-width:100%;aspect-ratio:1;border-radius:8px;
-  overflow:hidden;background:rgba(255,255,255,.06);
-  box-shadow:0 30px 80px -20px rgba(0,0,0,.65),0 8px 24px rgba(0,0,0,.35),inset 0 0 0 1px rgba(255,255,255,.06);
-  transition:width .6s var(--ease)}
-.art-layer{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity .9s var(--ease)}
+/* clock */
+.clock-block{text-shadow:0 1px 12px rgba(0,0,0,.45);pointer-events:none}
+.slot[data-corner$="r"] .clock-block{text-align:right}
+.clock{font-weight:600;font-size:calc(30px * var(--clock-scale));letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1}
+.today{margin-top:calc(5px * var(--clock-scale));font-weight:400;font-size:calc(13px * var(--clock-scale));color:var(--fg-3);letter-spacing:.01em}
+/* Over a bright part of the photo, a shadow isn't enough: give the clock the widget's frosted-glass backing. */
+.clock-block{transition:background .6s var(--ease),padding .3s var(--ease);border-radius:14px}
+.clock-block.on-bright{padding:10px 14px;background:rgba(12,14,13,.42);-webkit-backdrop-filter:blur(20px) saturate(1.4);backdrop-filter:blur(20px) saturate(1.4)}
+.clock-block.on-bright .today{color:var(--fg-2)}
+
+/* ---------- Spotify widget ----------
+   Every size comes from a variable that ui/layout.js sets from your settings:
+   --w-width, --w-height, --w-pad, --w-blur, --w-tint, --art, --art-radius, --t (text scale). */
+.widget{
+  --w-width:380px; --w-height:auto; --w-pad:16px; --w-blur:24px; --w-tint:.42;
+  --art:112px; --art-radius:8px; --t:1; --s:1; --gap:calc(14px * var(--s));
+  width:var(--w-width);max-width:calc(100vw - 2 * var(--edge));min-height:var(--w-height);
+  padding:var(--w-pad);border-radius:calc(22px * var(--s));
+  background:rgba(12,14,13,var(--w-tint));border:1px solid var(--hair);
+  -webkit-backdrop-filter:blur(var(--w-blur)) saturate(1.5);backdrop-filter:blur(var(--w-blur)) saturate(1.5);
+  box-shadow:0 18px 50px -18px rgba(0,0,0,.55),0 2px 10px rgba(0,0,0,.18);
+  display:grid;column-gap:var(--gap);row-gap:8px;align-content:start;
+  grid-template-columns:var(--art) minmax(0,1fr);
+  grid-template-rows:auto auto 1fr auto auto;   /* the progress row stretches, so progress + controls sit together at the bottom */
+  grid-template-areas:"art head" "art meta" "art prog" "art ctl" "status status";
+  transition:background .6s var(--ease)}
+/* Artwork too big for a side-by-side layout → artwork on top */
+.widget.stacked{grid-template-columns:minmax(0,1fr);grid-template-rows:auto;
+  grid-template-areas:"art" "head" "meta" "prog" "ctl" "status"}
+.widget.no-art{grid-template-columns:minmax(0,1fr);grid-template-rows:auto;
+  grid-template-areas:"head" "meta" "prog" "ctl" "status"}
+.widget.no-art .w-art,.widget.no-info .w-meta,.widget.no-info .w-device,
+.widget.no-controls .w-controls,.widget.no-progress .w-progress,.widget.no-extras .ctl.extra,
+.widget.no-album .album{display:none}
+.widget.dragging{opacity:.85;transition:none;cursor:grabbing;z-index:5}
+.widget.lifted{transform:scale(1.03);box-shadow:0 26px 60px -16px rgba(0,0,0,.7)}
+/* Smooth +/− resizing (only while resizing, so slider drags stay instant) */
+.widget.resizing,.widget.resizing *{transition:width .3s var(--ease),height .3s var(--ease),padding .3s var(--ease),
+  font-size .3s var(--ease),gap .3s var(--ease),border-radius .3s var(--ease)!important}
+.widget.disconnected > :not(.w-head):not(.w-connect){display:none}
+.widget.disconnected{grid-template-columns:minmax(0,1fr);grid-template-areas:"head" "connect"}
+
+.w-art{grid-area:art;position:relative;width:var(--art);height:var(--art);max-width:100%;border-radius:var(--art-radius);overflow:hidden;
+  background:rgba(255,255,255,.06);box-shadow:0 8px 24px rgba(0,0,0,.35);align-self:start}
+.widget.stacked .w-art{justify-self:center}
+/* Spotify design rules: artwork is never cropped, blurred, zoomed or covered */
+.art-layer{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity .8s var(--ease)}
 .art-layer.on{opacity:1}
 .art-empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--fg-4)}
-.art-empty svg{width:28%;height:28%;stroke-width:1.2}
-.art-wrap.has .art-empty{display:none}
+.art-empty svg{width:34%;height:34%;stroke-width:1.3}
+.w-art.has .art-empty{display:none}
 
-/* glass panel */
-.panel{min-width:0;align-self:center;display:flex;flex-direction:column;gap:clamp(18px,3vh,32px);
-  padding:clamp(24px,3.4vw,44px);border-radius:clamp(20px,2.2vw,30px);
-  background:var(--glass);border:1px solid var(--hair);
-  -webkit-backdrop-filter:blur(28px) saturate(1.6);backdrop-filter:blur(28px) saturate(1.6);
-  box-shadow:0 20px 60px -30px rgba(0,0,0,.6)}
-/* Spotify attribution row: full logo (>= 70px wide, clear space around it) + link back to Spotify */
-.attrib{display:flex;align-items:center;justify-content:space-between;gap:24px}
-.spotify-logo{width:88px;height:auto;flex:none;display:block}
-.open-spotify{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--fg);text-decoration:none;
-  padding:9px 14px;border-radius:16px;border:1px solid var(--hair);background:rgba(255,255,255,.06);white-space:nowrap}
-.open-spotify:active{background:rgba(255,255,255,.14)}
-.eyebrow{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--fg-3);min-width:0}
-.eyebrow svg{width:16px;height:16px;flex:none}
-.eyebrow span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.eyebrow.plain{display:block}
+.w-head{grid-area:head;display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0}
+.w-logo{display:block;flex:none;padding:2px 0}
+.w-logo img{display:block;width:max(70px,calc(70px * var(--s)));height:auto}  /* full logo, never below Spotify's 70 px minimum */
+.w-device{min-width:0;font-size:calc(11px * var(--t));font-weight:500;color:var(--fg-3);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-.meta{min-width:0;transition:opacity .45s var(--ease),transform .45s var(--ease)}
-.meta.swap{opacity:0;transform:translateY(6px)}
-.title{margin:0;font-weight:650;font-size:clamp(26px,3.9vw,54px);line-height:1.04;letter-spacing:-.025em;
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-wrap:balance}
-.artist{margin:.5em 0 0;font-weight:500;font-size:clamp(17px,2vw,26px);color:var(--fg-2);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.album{margin:.35em 0 0;font-family:var(--serif);font-style:italic;font-size:clamp(17px,1.9vw,25px);color:var(--fg-3);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.w-meta{grid-area:meta;min-width:0;cursor:pointer;transition:opacity .4s var(--ease)}
+.w-meta.swap{opacity:0}
+.title{margin:0;font-weight:600;font-size:calc(16px * var(--t));line-height:1.2;letter-spacing:-.01em;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.artist{margin:3px 0 0;font-weight:500;font-size:calc(13.5px * var(--t));color:var(--fg-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.album{margin:2px 0 0;font-weight:400;font-size:calc(12px * var(--t));color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .album:empty{display:none}
-/* Spotify rule: truncated metadata must be viewable in full — tapping the text shows all of it */
-.meta{cursor:pointer;outline-offset:6px}
-.meta.full .title{-webkit-line-clamp:unset;display:block}
-.meta.full .artist,.meta.full .album{white-space:normal}
+/* Spotify rule: truncated metadata must be viewable — tapping shows the full text */
+.w-meta.full .title{-webkit-line-clamp:unset;display:block}
+.w-meta.full .artist,.w-meta.full .album{white-space:normal}
 
-/* progress */
-.bar{position:relative;height:28px;display:flex;align-items:center;cursor:pointer;touch-action:none}
-.bar-track{position:relative;width:100%;height:5px;border-radius:3px;background:var(--fg-4);overflow:hidden;transition:height .2s}
-.bar-fill{position:absolute;inset:0 auto 0 0;width:0;background:var(--accent);border-radius:3px}
-.bar-knob{position:absolute;top:50%;left:0;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:var(--accent);
-  box-shadow:0 2px 8px rgba(0,0,0,.4);transform:scale(0);transition:transform .2s}
+.w-progress{grid-area:prog;min-width:0;align-self:end}
+.bar{position:relative;height:calc(18px * var(--s));display:flex;align-items:center;cursor:pointer;touch-action:none}
+.bar-track{position:relative;width:100%;height:calc(4px * var(--s));border-radius:2px;background:var(--fg-4);overflow:hidden;transition:height .2s}
+.bar-fill{position:absolute;inset:0 auto 0 0;width:0;background:var(--accent);border-radius:2px}
+.bar-knob{position:absolute;top:50%;left:0;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 6px rgba(0,0,0,.4);transform:scale(0);transition:transform .2s}
 .bar:hover .bar-knob,.bar.drag .bar-knob,.bar:focus-visible .bar-knob{transform:scale(1)}
-.bar.drag .bar-track{height:8px}
+.bar.drag .bar-track{height:6px}
 .bar.locked{cursor:default}
-.times{display:flex;justify-content:space-between;margin-top:4px;font-size:13px;font-weight:600;color:var(--fg-3);font-variant-numeric:tabular-nums}
+.times{display:flex;justify-content:space-between;font-size:calc(11px * var(--s));font-weight:500;color:var(--fg-3);font-variant-numeric:tabular-nums}
 
-/* controls */
-.controls{display:flex;align-items:center;justify-content:space-between;max-width:440px;width:100%}
-.ctl{position:relative;width:56px;height:56px;border:0;border-radius:50%;background:none;display:grid;place-items:center;cursor:pointer;
-  color:var(--fg);transition:transform .15s,background .2s,color .2s,opacity .2s}
-.ctl svg{width:32px;height:32px}
-.ctl.small svg{width:22px;height:22px}
-.ctl.small{color:var(--fg-3)}
-.ctl.small[aria-pressed="true"],.ctl.small.on{color:var(--fg)}
-.ctl.small.on::after{content:"";position:absolute;bottom:7px;left:50%;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:currentColor}
-.ctl .one{position:absolute;top:13px;right:11px;font-size:9px;font-weight:800;display:none}
+.w-controls{grid-area:ctl;display:flex;align-items:center;justify-content:space-between;gap:4px;align-self:end;min-width:0}
+/* Buttons scale with the widget but never shrink below 36 px, so they stay easy to tap */
+.ctl{position:relative;flex:none;width:max(36px,calc(40px * var(--s)));height:max(36px,calc(40px * var(--s)));border:0;border-radius:50%;background:none;
+  display:grid;place-items:center;cursor:pointer;color:var(--fg);transition:transform .15s,background .2s,color .2s,opacity .2s}
+.ctl svg{width:calc(24px * var(--s));height:calc(24px * var(--s))}
+.ctl.extra svg{width:calc(18px * var(--s));height:calc(18px * var(--s))}
+.ctl.extra{color:var(--fg-3)}
+.ctl.extra.on{color:var(--accent)}
+.ctl.extra.on::after{content:"";position:absolute;bottom:4px;left:50%;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:currentColor}
+.ctl .one{position:absolute;top:8px;right:7px;font-size:8px;font-weight:800;display:none}
 .ctl.repeat-one .one{display:block}
-.ctl.play{width:76px;height:76px;background:var(--fg);color:#0b0b0d}
-.ctl.play svg{width:34px;height:34px}
-.ctl:active:not(:disabled){transform:scale(.92)}
-.ctl:disabled{opacity:.28;cursor:default}
+.ctl.play{width:max(40px,calc(44px * var(--s)));height:max(40px,calc(44px * var(--s)));background:#fff;color:#0b0b0d}
+.ctl.play svg{width:calc(22px * var(--s));height:calc(22px * var(--s))}
+.ctl:active:not(:disabled){transform:scale(.9)}
+.ctl:disabled{opacity:.3;cursor:default}
 .ctl.play .icon-pause{display:none}
 .ctl.play.playing .icon-pause{display:block}
 .ctl.play.playing .icon-play{display:none}
-:root.no-controls .controls,:root.no-controls .progress{display:none}
 
-.status{margin:0;font-size:14px;line-height:1.45;color:var(--fg-2);padding:10px 14px;border-radius:12px;background:rgba(0,0,0,.25);border:1px solid var(--hair)}
+.w-status{grid-area:status;margin:0;font-size:12px;line-height:1.4;color:var(--fg-2)}
+.w-connect{grid-area:connect;display:flex;flex-direction:column;align-items:flex-start;gap:10px}
+.w-connect p{margin:0;font-size:13px;color:var(--fg-2);line-height:1.4}
 
-/* ---------- connect screen ---------- */
-.connect{position:relative;z-index:1;height:100%;overflow-y:auto;display:flex;align-items:center;justify-content:center;
-  padding-block:calc(env(safe-area-inset-top,0px) + 80px) calc(env(safe-area-inset-bottom,0px) + 40px);
+/* ---------- photo nav + gear (shown after a tap) ---------- */
+.nav,.gear{position:fixed;z-index:3;width:44px;height:44px;border-radius:50%;border:1px solid var(--hair);
+  background:rgba(16,16,20,.45);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);
+  display:grid;place-items:center;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .4s}
+.nav svg,.gear svg{width:20px;height:20px}
+.nav{top:50%;margin-top:-22px}
+.nav.prev{left:max(12px,calc(env(safe-area-inset-left,0px) + 12px))}
+.nav.next{right:max(12px,calc(env(safe-area-inset-right,0px) + 12px))}
+.gear{left:50%;margin-left:-22px;top:calc(env(safe-area-inset-top,0px) + 14px)}
+body.ui .gear,body.ui.has-photos.mode-photos .nav{opacity:1;pointer-events:auto}
+
+/* ---------- widget size buttons (Feature A) ---------- */
+.w-size{display:flex;gap:8px;opacity:0;pointer-events:none;transition:opacity .4s}
+.w-size button{width:40px;height:40px;border-radius:50%;border:1px solid var(--hair);background:rgba(16,16,20,.5);
+  -webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);display:grid;place-items:center;cursor:pointer}
+.w-size button svg{width:18px;height:18px}
+.w-size button:disabled{opacity:.35;cursor:default}
+body.ui.mode-photos .w-size:not(.off){opacity:1;pointer-events:auto}
+
+/* ---------- display modes ----------
+   <body class="mode-photos | mode-artwork | mode-clock"> decides which layer is visible; CSS crossfades them. */
+.art-stage,.clock-stage{position:fixed;inset:0;z-index:4;opacity:0;visibility:hidden;
+  transition:opacity .6s var(--ease),visibility 0s linear .6s}
+body.mode-artwork .art-stage,body.mode-clock .clock-stage{opacity:1;visibility:visible;transition:opacity .6s var(--ease),visibility 0s}
+.slot,.empty-hint{transition:opacity .5s var(--ease)}
+body:not(.mode-photos) .slot,body:not(.mode-photos) .empty-hint,body:not(.mode-photos) .nav{opacity:0;pointer-events:none}
+body:not(.mode-photos) .slot > *{pointer-events:none}
+
+/* Mode 2 — full-screen album artwork. The whole cover is shown (Spotify forbids cropping it); it fills the
+   screen's height, and the remaining space is a gradient of colours sampled from the cover's left and right edges. */
+.art-stage{background:#000;display:grid;place-items:center}
+.art-fill{position:absolute;inset:0;background:linear-gradient(90deg,var(--fill-l,#000),var(--fill-r,#000));transition:background 1s var(--ease)}
+.stage-art{position:absolute;top:50%;left:50%;width:min(100vw,100vh);height:min(100vw,100vh);transform:translate(-50%,-50%);
+  object-fit:contain;opacity:0;transition:opacity .9s var(--ease)}
+.stage-art.on{opacity:1}
+.stage-msg{position:relative;margin:0;padding:0 24px;text-align:center;font-size:17px;font-weight:500;color:var(--fg-2)}
+.stage-msg:empty{display:none}
+.stage-logo{position:absolute;left:max(20px,calc(env(safe-area-inset-left,0px) + 20px));bottom:calc(env(safe-area-inset-bottom,0px) + 20px);
+  display:block;padding:6px;border-radius:8px}
+.stage-logo img{display:block;width:70px;height:auto;filter:drop-shadow(0 1px 6px rgba(0,0,0,.5))}
+
+/* Mode 3 — clock over the current photo, darkened */
+.clock-stage{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  background:rgba(0,0,0,.55);text-shadow:0 2px 24px rgba(0,0,0,.4)}
+.big-time{font-weight:600;font-size:min(26vw,40vh);line-height:.9;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.big-date{font-weight:400;font-size:clamp(16px,2.2vw,24px);color:var(--fg-3);letter-spacing:.01em}
+
+/* ---------- mode dots ---------- */
+.dots{position:fixed;z-index:6;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 8px);
+  display:flex;gap:2px;padding:4px 6px;border-radius:14px}
+.dots button{width:28px;height:28px;border:0;background:none;display:grid;place-items:center;cursor:pointer;padding:0}
+.dots button::before{content:"";width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.35);
+  box-shadow:0 0 4px rgba(0,0,0,.4);transition:background .3s,width .3s}
+.dots button[aria-current="true"]::before{background:rgba(255,255,255,.95);width:16px;border-radius:3px}
+
+/* ---------- connect modal ---------- */
+.modal{position:fixed;inset:0;z-index:12;overflow-y:auto;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.45);
+  padding-block:calc(env(safe-area-inset-top,0px) + 24px) calc(env(safe-area-inset-bottom,0px) + 24px);
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
   -webkit-user-select:text;user-select:text}
-.connect-card{width:min(620px,100%);padding:clamp(24px,4vw,44px);border-radius:28px;background:var(--glass-strong);border:1px solid var(--hair);
+.connect-card{position:relative;width:min(600px,100%);padding:clamp(22px,4vw,40px);border-radius:26px;background:var(--glass-strong);border:1px solid var(--hair);
   -webkit-backdrop-filter:blur(30px);backdrop-filter:blur(30px)}
-.connect h1{margin:.2em 0 0;font-size:clamp(32px,4.4vw,48px);letter-spacing:-.025em;font-weight:650}
-.lede{color:var(--fg-2);font-size:17px;line-height:1.5;margin:.7em 0 1.4em;max-width:52ch}
-.setup{margin:0 0 24px;padding-left:22px;display:flex;flex-direction:column;gap:12px;font-size:15px;line-height:1.5;color:var(--fg-2)}
+.connect-card .close{position:absolute;top:16px;right:16px}
+.connect-card h1{margin:0;font-size:clamp(28px,4vw,40px);letter-spacing:-.025em;font-weight:650}
+.lede{color:var(--fg-2);font-size:16px;line-height:1.5;margin:.7em 0 1.3em;max-width:52ch}
+.setup{margin:0 0 22px;padding-left:22px;display:flex;flex-direction:column;gap:12px;font-size:15px;line-height:1.5;color:var(--fg-2)}
 .setup b{color:var(--fg);font-weight:600}
 .setup a{color:var(--fg)}
 .copyrow{display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap;min-width:0}
@@ -150,37 +237,48 @@ code{font:500 13px ui-monospace,"SF Mono",Menlo,monospace;background:rgba(255,25
   padding:6px 9px;overflow-wrap:anywhere;color:var(--fg)}
 .connect-form label{display:block;font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-3);margin-bottom:8px}
 .field-row{display:flex;gap:10px;flex-wrap:wrap}
-.field-row input{flex:1 1 220px;min-width:0;height:48px;border-radius:12px;border:1px solid var(--hair);background:rgba(0,0,0,.3);color:var(--fg);
-  font:500 16px ui-monospace,"SF Mono",Menlo,monospace;padding:0 14px}
+.field-row input,.newcol input{flex:1 1 200px;min-width:0;height:44px;border-radius:12px;border:1px solid var(--hair);background:rgba(0,0,0,.3);color:var(--fg);
+  font:500 15px var(--sans);padding:0 14px}
+.field-row input{font-family:ui-monospace,"SF Mono",Menlo,monospace}
 .form-error{color:var(--danger);font-size:14px;margin:10px 0 0}
 .fine{color:var(--fg-3);font-size:13px;margin:18px 0 0}
 
 /* ---------- buttons ---------- */
 a.btn{text-decoration:none}
 .hint a{color:var(--fg-2)}
-.btn{display:inline-flex;align-items:center;justify-content:center;height:48px;padding:0 22px;border-radius:24px;border:0;
+.btn{display:inline-flex;align-items:center;justify-content:center;height:46px;padding:0 20px;border-radius:23px;border:0;
   background:var(--fg);color:#0b0b0d;font-weight:650;font-size:15px;cursor:pointer;white-space:nowrap}
 .btn.ghost{background:rgba(255,255,255,.08);color:var(--fg);border:1px solid var(--hair)}
 .btn.danger{background:transparent;color:var(--danger);border:1px solid rgba(255,107,94,.35)}
 .btn.tiny{height:34px;padding:0 14px;font-size:13px;border-radius:17px}
 .btn:disabled{opacity:.5}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
 
 /* ---------- settings sheet ---------- */
-.sheet{position:fixed;z-index:10;top:0;right:0;bottom:0;width:min(420px,100%);overflow-y:auto;
+.sheet{position:fixed;z-index:10;top:0;right:0;bottom:0;width:min(440px,100%);overflow-y:auto;overscroll-behavior:contain;
   background:var(--glass-strong);border-left:1px solid var(--hair);-webkit-backdrop-filter:blur(30px) saturate(1.4);backdrop-filter:blur(30px) saturate(1.4);
-  padding:calc(env(safe-area-inset-top,0px) + 20px) max(22px,calc(env(safe-area-inset-right,0px) + 20px)) calc(env(safe-area-inset-bottom,0px) + 32px) 24px;
+  padding:calc(env(safe-area-inset-top,0px) + 18px) max(20px,calc(env(safe-area-inset-right,0px) + 18px)) calc(env(safe-area-inset-bottom,0px) + 32px) 22px;
   transform:translateX(104%);transition:transform .4s var(--ease);-webkit-user-select:text;user-select:text}
 .sheet.open{transform:none}
-.sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
-.sheet h2{margin:0;font-size:28px;font-weight:650;letter-spacing:-.02em}
-.group{margin-top:22px}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sheet h2{margin:0;font-size:26px;font-weight:650;letter-spacing:-.02em}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:4px;border-radius:12px;background:rgba(255,255,255,.06);position:sticky;top:-18px;z-index:1}
+.tabs button{border:0;background:none;color:var(--fg-2);font-size:13px;font-weight:600;padding:8px 4px;border-radius:9px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:rgba(255,255,255,.14);color:var(--fg)}
+.group{margin-top:20px}
 .group h3{margin:0 0 6px;font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--fg-3)}
 .row{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:48px;border-bottom:1px solid var(--hair);font-size:15px}
 .row.col{flex-direction:column;align-items:flex-start;padding-block:12px;gap:8px}
+.row.range{display:grid;grid-template-columns:1fr auto;grid-template-areas:"label value" "input input";row-gap:2px;padding-block:10px}
+.row.range label{grid-area:label}
+.row.range output{grid-area:value;color:var(--fg-2);font-size:13px;font-variant-numeric:tabular-nums}
+.row.range input{grid-area:input;width:100%;accent-color:var(--fg)}
 .row label{flex:1}
+.row.disabled{opacity:.45}
 .value{color:var(--fg-2);text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mono{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:13px}
 .hint{color:var(--fg-3);font-size:13px;line-height:1.5;margin:8px 0 0}
+.hint b{color:var(--fg-2)}
 .row select{background:rgba(0,0,0,.3);color:var(--fg);border:1px solid var(--hair);border-radius:10px;font:500 15px var(--sans);padding:8px 10px}
 .switch{appearance:none;-webkit-appearance:none;width:51px;height:31px;border-radius:16px;background:var(--fg-4);position:relative;cursor:pointer;flex:none;margin:0;transition:background .2s}
 .switch::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.3);transition:transform .2s}
@@ -195,20 +293,26 @@ a.btn{text-decoration:none}
 .device.active svg{color:#34c759}
 .device:disabled{opacity:.45;cursor:default}
 
+/* collections */
+.collections{display:flex;flex-direction:column}
+.collection{display:flex;align-items:center;gap:12px;min-height:56px;border-bottom:1px solid var(--hair)}
+.collection .cover{width:40px;height:40px;border-radius:8px;object-fit:cover;background:rgba(255,255,255,.08);flex:none}
+.collection .cname{flex:1;min-width:0}
+.collection .cname b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.collection .cname span{font-size:12px;color:var(--fg-3)}
+.collection.active .cname b::after{content:" · Showing";color:#34c759;font-weight:600;font-size:12px}
+.newcol{display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px;margin-top:10px}
+.thumbs button{padding:0;border:2px solid transparent;border-radius:8px;overflow:hidden;aspect-ratio:1;background:rgba(255,255,255,.06);cursor:pointer}
+.thumbs button.current{border-color:#fff}
+.thumbs img{width:100%;height:100%;object-fit:cover;display:block}
+
 /* ---------- toast ---------- */
-.toast{position:fixed;z-index:20;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 24px);transform:translateX(-50%);
+.toast{position:fixed;z-index:20;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 74px);transform:translateX(-50%);
   background:var(--glass-strong);border:1px solid var(--hair);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);
   padding:10px 18px;border-radius:20px;font-size:14px;font-weight:500;max-width:calc(100% - 32px)}
 
-/* ---------- portrait / narrow ---------- */
-@media (orientation:portrait),(max-width:760px){
-  :root{--art:min(46vh,78vw)}
-  :root[data-art="m"]{--art:min(38vh,66vw)}
-  :root[data-art="xl"]{--art:min(52vh,86vw)}
-  .stage{grid-template-columns:minmax(0,1fr);justify-items:center;align-content:center;overflow-y:auto;
-    padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-  .panel{width:min(620px,100%)}
-}
+@media (max-width:520px){ :root{--edge:12px} }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{transition-duration:.01ms!important}
 }

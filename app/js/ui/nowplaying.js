@@ -131,7 +131,7 @@ export function createNowPlaying(playback, opts = {}) {
       currentTrackId = id;
     }
     art(t ? t.image : null);
-    opts.onArtwork && opts.onArtwork(t ? t.image : null);
+    opts.onTrack && opts.onTrack(t || null);   // lets the full-screen artwork mode follow the current song
     // "Open Spotify" links back to the exact song/episode (playback.js only passes open.spotify.com links).
     $("openSpotify").href = (t && t.url) || "https://open.spotify.com/";
 
