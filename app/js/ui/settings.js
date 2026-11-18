@@ -15,14 +15,19 @@ export const DEFAULTS = {
   // Display mode (swipe or dots): "photos" | "artwork" | "clock"
   mode: "photos",
   // Spotify widget — wScale multiplies every size below (the +/− buttons change it)
-  wScale: 1, wPos: "tr", wWidth: 400, wHeight: 0, wOpacity: 0.38, wBlur: 24, wPad: 14,
+  wScale: 1, wWidth: 400,
+  // Widget position: a corner preset ("tl","tr","bl","br") or "custom" (dragged). wX/wY = fractions of the free space.
+  wPos: "tr", wX: 1, wY: 0, wHeight: 0, wOpacity: 0.38, wBlur: 24, wPad: 14,
   artOn: true, artSize: 112, artRadius: 8,
   infoOn: true, textScale: 1, albumOn: false,
   controlsOn: true, extrasOn: true, progressOn: true, accent: "green",
   // Clock
   clockOn: true, dateOn: true, h24: false, clockSize: 1, clockPos: "tl",
   // Photos
-  wallCollection: null, wallInterval: 10, wallOrder: "random", wallPaused: false, wallFade: 2, wallDim: 0.12,
+  wallCollection: null, wallInterval: 10, wallOrder: "random", wallPaused: false, wallFade: 2, wallDim: 0,
+  fgSize: 0.92, bgExtend: true, bgBlur: 48, bgDim: 0.35, vignette: 0.5,
+  // Album art mode
+  artMargin: 9, artBg: "colors",
 };
 
 const POS = [["tr", "Top right"], ["tl", "Top left"], ["br", "Bottom right"], ["bl", "Bottom left"]];
@@ -35,13 +40,20 @@ export const SCHEMA = {
       options: [[5, "5 minutes"], [10, "10 minutes"], [15, "15 minutes"], [30, "30 minutes"], [0, "Only when I swipe"]] },
     { key: "wallOrder", label: "Order", type: "select", options: [["random", "Random"], ["sequential", "In order"]] },
     { key: "wallPaused", label: "Pause rotation", type: "switch" },
-    { key: "wallFade", label: "Transition", type: "select", num: true, options: [[1, "Quick"], [2, "Smooth"], [4, "Slow"]] },
-    { key: "wallDim", label: "Photo darkening", type: "range", min: 0, max: 0.6, step: 0.02, fmt: pct },
+    { key: "wallFade", label: "Transition length", type: "range", min: 0.5, max: 6, step: 0.5, fmt: v => `${v} s` },
+    { group: "Appearance" },
+    { key: "fgSize", label: "Photo size (the whole photo always stays visible)", type: "range", min: 0.6, max: 1, step: 0.02, fmt: pct },
+    { key: "bgExtend", label: "Blurred background around the photo", type: "switch" },
+    { key: "bgBlur", label: "Background blur", type: "range", min: 10, max: 100, step: 2, fmt: px },
+    { key: "bgDim", label: "Background darkness", type: "range", min: 0, max: 0.8, step: 0.02, fmt: pct },
+    { key: "vignette", label: "Vignette (darker edges)", type: "range", min: 0, max: 0.9, step: 0.02, fmt: pct },
+    { key: "wallDim", label: "Darken everything (photo too)", type: "range", min: 0, max: 0.6, step: 0.02, fmt: pct },
   ],
   music: [
     { group: "Widget" },
     { key: "wScale", label: "Overall size (same as the − / + buttons)", type: "range", min: 0.8, max: 1.8, step: 0.1, fmt: pct },
-    { key: "wPos", label: "Position", type: "select", options: POS },
+    { key: "wPos", label: "Position (or press and hold the widget, then drag it)", type: "select",
+      options: [...POS, ["custom", "Custom (dragged)"]] },
     { key: "wWidth", label: "Width", type: "range", min: 260, max: 760, step: 10, fmt: px },
     { key: "wHeight", label: "Minimum height", type: "range", min: 0, max: 560, step: 10, fmt: v => (v ? px(v) : "Auto") },
     { key: "wOpacity", label: "Background darkness", type: "range", min: 0.1, max: 0.9, step: 0.02, fmt: pct },
@@ -68,6 +80,9 @@ export const SCHEMA = {
     { key: "h24", label: "24-hour time", type: "switch" },
     { key: "clockSize", label: "Clock size", type: "range", min: 0.6, max: 3, step: 0.1, fmt: pct },
     { key: "clockPos", label: "Clock position", type: "select", options: POS },
+    { group: "Album art mode" },
+    { key: "artMargin", label: "Space around the cover", type: "range", min: 2, max: 18, step: 1, fmt: v => `${v}% of the short side` },
+    { key: "artBg", label: "Background", type: "select", options: [["colors", "Colours from the cover"], ["black", "Black"]] },
   ],
 };
 
@@ -154,8 +169,8 @@ export function createSettings({ settings, onChange, client, playback, redirect,
     renderRows($("rowsPhotos"), SCHEMA.photos, settings, change);
     renderRows($("rowsMusic"), SCHEMA.music, settings, change);
     renderRows($("rowsDisplay"), SCHEMA.display, settings, change);
-    $("musicNote").textContent = "Tip: drag the widget to any corner. Artwork, text and widget size are independent; " +
-      "if the artwork leaves too little room beside it, the song info moves below the artwork.";
+    $("musicNote").textContent = "Tip: press and hold the widget (not its buttons) until it lifts, then drag it anywhere. " +
+      "Artwork, text and widget size are independent; if the artwork leaves too little room beside it, the song info moves below the artwork.";
   }
 
   function showTab(name) {

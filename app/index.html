@@ -20,9 +20,19 @@
 <body>
 
 <!-- ===== Layer 1: full-screen photos (wallpapers/engine.js swaps these two images) ===== -->
+<!-- Each slide = blurred background (from the small thumbnail) + darkening + vignette + the whole, sharp photo.
+     The engine fills the hidden slide, waits until it's decoded, then crossfades the two slides. -->
 <div class="backdrop" id="backdrop" aria-hidden="true">
-  <img class="wp-layer" id="wpA" alt="">
-  <img class="wp-layer" id="wpB" alt="">
+  <div class="wp-slide" id="wpA">
+    <img class="wp-bg" alt="">
+    <div class="wp-shade"></div>
+    <img class="wp-fg" alt="">
+  </div>
+  <div class="wp-slide" id="wpB">
+    <img class="wp-bg" alt="">
+    <div class="wp-shade"></div>
+    <img class="wp-fg" alt="">
+  </div>
   <div class="scrim"></div>
 </div>
 
@@ -68,11 +78,16 @@
   <div class="today" id="today">Wednesday, November 18</div>
 </div>
 
-<!-- ===== Spotify widget (ui/nowplaying.js fills it; ui/layout.js sizes and places it) ===== -->
+<!-- Invisible: marks the usable screen area (edges, iPad safe areas, room for the mode dots).
+     ui/layout.js measures it to know where the widget may go. -->
+<div class="safe-area" id="safeArea" aria-hidden="true"></div>
+
+<!-- ===== Dock: the Spotify widget + its −/+ buttons. Positioned freely by ui/layout.js (press-and-hold to drag). ===== -->
+<div class="dock" id="dock">
 <section class="widget" id="widget" aria-label="Now playing">
   <div class="w-art" id="artWrap">
-    <img class="art-layer" id="artA" alt="">
-    <img class="art-layer" id="artB" alt="">
+    <img class="art-layer" id="artA" alt="" draggable="false">
+    <img class="art-layer" id="artB" alt="" draggable="false">
     <div class="art-empty" aria-hidden="true">
       <svg viewBox="0 0 24 24" class="stroke"><path d="M9 18V6l11-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg>
     </div>
@@ -81,7 +96,7 @@
   <!-- Spotify attribution (required): official logo, which also links back to the item on Spotify -->
   <div class="w-head">
     <a class="w-logo" id="openSpotify" href="https://open.spotify.com/" target="_blank" rel="noopener noreferrer" aria-label="Open in Spotify">
-      <img src="assets/spotify/Full_Logo_White_RGB.svg" alt="Spotify" width="70" height="19">
+      <img src="assets/spotify/Full_Logo_White_RGB.svg" alt="Spotify" width="70" height="19" draggable="false">
     </a>
     <span class="w-device" id="device"><span id="deviceName">No active device</span></span>
   </div>
@@ -137,6 +152,7 @@
     <svg viewBox="0 0 24 24" class="stroke"><path d="M12 6v12M6 12h12"/></svg>
   </button>
 </div>
+</div><!-- /dock -->
 
 <!-- Photo navigation (appears with a tap) -->
 <button class="nav prev" id="wpPrev" type="button" aria-label="Previous photo">

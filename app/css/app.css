@@ -17,7 +17,12 @@
   --ease:cubic-bezier(.22,.61,.36,1);
   --edge:20px;                  /* safe margin from the screen edge */
   --wall-fade:2s;
-  --wall-dim:.12;
+  --wall-dim:0;
+  --fg-size:.92;      /* photo size: share of the screen the whole photo may use */
+  --bg-blur:48px;     /* blurred background */
+  --bg-dim:.35;
+  --vignette:.5;
+  --art-margin:9vmin; /* album-art mode spacing around the cover */
   --clock-scale:1;
   color-scheme:dark;
 }
@@ -39,10 +44,29 @@ svg.fill{fill:currentColor}
 /* ---------- Layer 1: photos ---------- */
 .backdrop{position:fixed;inset:0;overflow:hidden;z-index:0;
   background:radial-gradient(90% 120% at 18% 30%,#23252c 0%,#121318 55%,var(--bg) 100%)}
-/* object-fit:cover fills the screen without stretching; object-position (set per photo) keeps the subject in frame */
-.wp-layer{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;opacity:0;
-  transition:opacity var(--wall-fade) ease-in-out}
-.wp-layer.on{opacity:1}
+/* A slide fades as one unit, so the photo and its blurred background always change together. */
+.wp-slide{position:absolute;inset:0;opacity:0;transition:opacity var(--wall-fade) ease-in-out;--ar:1.5}
+.wp-slide.on{opacity:1}
+/* Background: the photo's small thumbnail, scaled to cover the screen and blurred. Oversized (inset -8%) so the
+   blur's soft edges fall off-screen. A 360 px thumbnail looks identical once blurred and costs far less memory. */
+.wp-bg{position:absolute;inset:-8%;width:116%;height:116%;max-width:none;object-fit:cover;
+  filter:blur(var(--bg-blur)) saturate(1.15)}
+/* Darkening + vignette over the background only (the sharp photo sits above it) */
+.wp-shade{position:absolute;inset:0;background:
+  radial-gradient(ellipse at center,rgba(0,0,0,0) 30%,rgba(0,0,0,var(--vignette)) 100%),
+  rgba(0,0,0,var(--bg-dim))}
+/* Foreground: the WHOLE photo, never cropped or stretched. Its box has the photo's own aspect ratio (--ar, stored at
+   import) and is as large as fits inside --fg-size of the screen, so it can cast a soft shadow onto the background.
+   object-fit:contain is a second safety net against distortion. */
+.wp-fg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:none;
+  aspect-ratio:var(--ar);
+  width:min(calc(100vw * var(--fg-size)),calc(100vh * var(--fg-size) * var(--ar)));
+  width:min(calc(100dvw * var(--fg-size)),calc(100dvh * var(--fg-size) * var(--ar)));  /* visible area, where supported */
+  height:auto;
+  object-fit:contain;box-shadow:0 18px 60px rgba(0,0,0,.45),0 4px 14px rgba(0,0,0,.25)}
+/* Background extension off: plain black around the photo */
+.backdrop.no-extend .wp-bg,.backdrop.no-extend .wp-shade{display:none}
+.backdrop.no-extend .wp-fg{box-shadow:none}
 .scrim{position:absolute;inset:0;pointer-events:none;background:rgba(0,0,0,var(--wall-dim))}
 
 .empty-hint{position:fixed;z-index:1;left:50%;top:50%;transform:translate(-50%,-50%);width:min(440px,calc(100% - 32px));
@@ -85,7 +109,7 @@ svg.fill{fill:currentColor}
   grid-template-columns:var(--art) minmax(0,1fr);
   grid-template-rows:auto auto 1fr auto auto;   /* the progress row stretches, so progress + controls sit together at the bottom */
   grid-template-areas:"art head" "art meta" "art prog" "art ctl" "status status";
-  transition:background .6s var(--ease)}
+  transition:background .6s var(--ease),transform .2s var(--ease),box-shadow .2s var(--ease)}
 /* Artwork too big for a side-by-side layout → artwork on top */
 .widget.stacked{grid-template-columns:minmax(0,1fr);grid-template-rows:auto;
   grid-template-areas:"art" "head" "meta" "prog" "ctl" "status"}
@@ -94,8 +118,22 @@ svg.fill{fill:currentColor}
 .widget.no-art .w-art,.widget.no-info .w-meta,.widget.no-info .w-device,
 .widget.no-controls .w-controls,.widget.no-progress .w-progress,.widget.no-extras .ctl.extra,
 .widget.no-album .album{display:none}
-.widget.dragging{opacity:.85;transition:none;cursor:grabbing;z-index:5}
-.widget.lifted{transform:scale(1.03);box-shadow:0 26px 60px -16px rgba(0,0,0,.7)}
+/* ---------- dock: widget + −/+ buttons, placed anywhere (ui/layout.js sets transform: translate3d(x, y)) ---------- */
+.safe-area{position:fixed;visibility:hidden;pointer-events:none;
+  top:calc(env(safe-area-inset-top,0px) + var(--edge));
+  left:max(var(--edge),calc(env(safe-area-inset-left,0px) + var(--edge)));
+  right:max(var(--edge),calc(env(safe-area-inset-right,0px) + var(--edge)));
+  bottom:calc(env(safe-area-inset-bottom,0px) + var(--edge) + 28px)}      /* 28 px keeps clear of the mode dots */
+.dock{position:fixed;left:0;top:0;z-index:2;display:flex;flex-direction:column;align-items:flex-end;gap:10px;
+  opacity:0;transition:transform .45s var(--ease),opacity .5s var(--ease);will-change:transform;
+  -webkit-touch-callout:none}                                             /* no iOS long-press callout */
+.dock.placed{opacity:1}
+.dock.above{flex-direction:column-reverse}       /* lower half of the screen: −/+ buttons above the widget */
+.dock.left{align-items:flex-start}               /* left half: −/+ buttons on the left */
+.dock.no-anim{transition:opacity .5s var(--ease)} /* follow the finger instantly, no easing lag */
+.widget img{-webkit-user-drag:none}
+.dock.lifted .widget{transform:scale(1.03);box-shadow:0 30px 70px -14px rgba(0,0,0,.75),0 4px 14px rgba(0,0,0,.3);cursor:grabbing}
+body:not(.mode-photos) .dock{opacity:0;pointer-events:none}
 /* Smooth +/− resizing (only while resizing, so slider drags stay instant) */
 .widget.resizing,.widget.resizing *{transition:width .3s var(--ease),height .3s var(--ease),padding .3s var(--ease),
   font-size .3s var(--ease),gap .3s var(--ease),border-radius .3s var(--ease)!important}
@@ -195,12 +233,19 @@ body:not(.mode-photos) .slot > *{pointer-events:none}
    screen's height, and the remaining space is a gradient of colours sampled from the cover's left and right edges. */
 .art-stage{background:#000;display:grid;place-items:center}
 .art-fill{position:absolute;inset:0;background:linear-gradient(90deg,var(--fill-l,#000),var(--fill-r,#000));transition:background 1s var(--ease)}
-.stage-art{position:absolute;top:50%;left:50%;width:min(100vw,100vh);height:min(100vw,100vh);transform:translate(-50%,-50%);
-  object-fit:contain;opacity:0;transition:opacity .9s var(--ease)}
+/* The cover is square: it takes the screen's shorter side minus --art-margin on each side. --art-margin is in vmin
+   (a percentage of the shorter side), so the spacing adapts to screen size and orientation. Never cropped (contain). */
+.stage-art{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:calc(min(100vw,100vh) - 2 * var(--art-margin));height:calc(min(100vw,100vh) - 2 * var(--art-margin));
+  width:calc(min(100dvw,100dvh) - 2 * var(--art-margin));height:calc(min(100dvw,100dvh) - 2 * var(--art-margin));
+  object-fit:contain;opacity:0;transition:opacity .9s var(--ease);border-radius:8px;
+  box-shadow:0 24px 70px rgba(0,0,0,.45)}
+.art-stage.plain .art-fill{display:none}
+.art-stage.plain .stage-art{box-shadow:none}
 .stage-art.on{opacity:1}
 .stage-msg{position:relative;margin:0;padding:0 24px;text-align:center;font-size:17px;font-weight:500;color:var(--fg-2)}
 .stage-msg:empty{display:none}
-.stage-logo{position:absolute;left:max(20px,calc(env(safe-area-inset-left,0px) + 20px));bottom:calc(env(safe-area-inset-bottom,0px) + 20px);
+.stage-logo{position:absolute;left:max(16px,calc(env(safe-area-inset-left,0px) + 16px));bottom:calc(env(safe-area-inset-bottom,0px) + 14px);
   display:block;padding:6px;border-radius:8px}
 .stage-logo img{display:block;width:70px;height:auto;filter:drop-shadow(0 1px 6px rgba(0,0,0,.5))}
 

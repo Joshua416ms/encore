@@ -98,7 +98,7 @@ const settingsUI = createSettings({
   settings, client, playback, redirect: redirectUri(), clientId, isConnected, toast,
   onChange(key) {
     save();
-    layout.apply();
+    layout.apply({ animate: key === "wPos" });   // choosing a corner glides the widget there
     if (key === "h24") tickClock();
     if (WALL_KEYS.includes(key)) engine.reschedule();
   },
@@ -205,6 +205,7 @@ document.addEventListener("pointerdown", requestWake);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
     tickClock(); requestWake(); engine.start();
+    layout.apply();   // the iPad may have rotated while the app was in the background: re-fit the widget
     if (isConnected()) playback.start();
   } else {
     engine.stop(); playback.stop();

@@ -1,6 +1,10 @@
 // Wallpaper engine: shows the active collection full screen and rotates through it.
-// Two <img> layers are stacked; the next photo is fully decoded on the hidden layer before it fades in,
-// so there is never a blank or half-drawn frame. Only the two visible images are kept in memory.
+// Two "slides" are stacked. Each slide = the whole photo (sharp, never cropped) + a blurred copy of its small
+// thumbnail behind it. The hidden slide is filled and fully decoded BEFORE it fades in, so there is never a blank
+// or half-drawn frame. Only the two slides' images are kept in memory; older ones are released after each fade.
+//
+// Why not decode the next photo minutes in advance? It would keep a third full-size photo in memory all the time,
+// and decoding just before the fade already hides all loading. So we don't.
 import { imageKeys, getImage } from "./library.js";
 
 const STATE_KEY = "encore.wall.state";
@@ -29,31 +33,88 @@ export function createWallpaperEngine({ layers: [a, b], getSettings, onShow }) {
     return st.bag.shift();
   }
 
-  async function show(key, { record = true } = {}) {
+  const held = new Map();   // slide → the object URLs it currently uses (so none is ever forgotten → no memory leak)
+
+  // Fill a slide with one photo and wait until both of its images are decoded. Throws if the photo is unusable.
+  async function prepare(slide, rec) {
+    const previous = held.get(slide);
+    if (previous) { previous.forEach(u => URL.revokeObjectURL(u)); held.delete(slide); }   // slide reused: free its old photo
+    const fgUrl = URL.createObjectURL(rec.display);
+    const bgUrl = URL.createObjectURL(rec.thumb || rec.display);
+    const fg = slide.querySelector(".wp-fg"), bg = slide.querySelector(".wp-bg");
+    slide.style.setProperty("--ar", rec.w && rec.h ? (rec.w / rec.h).toFixed(4) : "1.5");
+    fg.src = fgUrl;
+    bg.src = bgUrl;
+    try {
+      await fg.decode();                                   // the photo itself must decode, or we skip it
+      await bg.decode().catch(() => {});                   // a missing blur background is not fatal
+    } catch (e) {
+      URL.revokeObjectURL(fgUrl); URL.revokeObjectURL(bgUrl);
+      fg.removeAttribute("src"); bg.removeAttribute("src");
+      throw e;
+    }
+    held.set(slide, [fgUrl, bgUrl]);
+    return [fgUrl, bgUrl];
+  }
+
+  function release(slide, urls) {
+    for (const img of slide.querySelectorAll("img")) if (urls.includes(img.src)) img.removeAttribute("src");
+    urls.forEach(u => URL.revokeObjectURL(u));
+    if (held.get(slide) === urls) held.delete(slide);
+  }
+
+  // Free the OLD slide's photo only once the NEW slide has fully faded in. Found in testing: browsers pause CSS
+  // transitions in hidden tabs/backgrounded apps, and a fixed timer then stripped a photo that was still on screen
+  // (blank frame). Mid-pause, opacity readings can also be misleading, so we require positive proof:
+  //   1) the new slide's own "transitionend" (fade-in really finished), or
+  //   2) a backup check that sees the new slide at opacity 1 AND the old at 0.
+  // If neither ever happens, the old photo is simply kept until that slide is reused: a little memory, never a blank.
+  function releaseAfterFadeIn(oldSlide, urls, newSlide) {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      newSlide.removeEventListener("transitionend", onEnd);
+      if (!oldSlide.classList.contains("on")) release(oldSlide, urls);    // never strip the visible slide
+    };
+    const onEnd = e => { if (e.target === newSlide && e.propertyName === "opacity" && newSlide.classList.contains("on")) finish(); };
+    newSlide.addEventListener("transitionend", onEnd);
+    const backup = (tries = 0) => {
+      if (done) return;
+      if (getComputedStyle(newSlide).opacity === "1" && getComputedStyle(oldSlide).opacity === "0") return finish();
+      if (tries < 20) setTimeout(() => backup(tries + 1), 1500);
+    };
+    setTimeout(backup, (getSettings().wallFade || 2) * 1000 + 600);
+  }
+
+  async function show(key, { record = true, attempt = 0 } = {}) {
     const mine = ++ticket;
     if (!key) {
       a.classList.remove("on"); b.classList.remove("on");
       onShow(null);
       return;
     }
-    const rec = await getImage(key);
-    if (!rec || mine !== ticket) return;
-    const url = URL.createObjectURL(rec.display);
     const back = front === a ? b : a;
-    // Smart crop: object-fit:cover keeps the aspect ratio; object-position keeps the subject in view.
-    back.style.objectPosition = `${(rec.focal?.x ?? 0.5) * 100}% ${(rec.focal?.y ?? 0.5) * 100}%`;
-    back.src = url;
-    try { await back.decode(); } catch { /* shown once loaded */ }
-    if (mine !== ticket) { URL.revokeObjectURL(url); return; }
+    let rec, urls;
+    try {
+      rec = await getImage(key);
+      if (!rec || !rec.display) throw new Error("missing");
+      if (mine !== ticket) return;
+      urls = await prepare(back, rec);
+    } catch {
+      // Unreadable or missing photo: skip it quietly and try the next one (max 3 in a row, so we never loop forever).
+      if (mine !== ticket) return;
+      keys = keys.filter(k => k !== key);
+      st.bag = (st.bag || []).filter(k => k !== key);
+      if (attempt < 2 && keys.length) return show(pickNext(), { record, attempt: attempt + 1 });
+      return;
+    }
+    if (mine !== ticket) { release(back, urls); return; }
     back.classList.add("on");
     front.classList.remove("on");
-    const oldUrl = currentUrl, oldLayer = front;
-    front = back; currentUrl = url;
-    if (oldUrl) {
-      // Free the previous photo's memory once the crossfade has finished.
-      setTimeout(() => { if (oldLayer.src === oldUrl) oldLayer.removeAttribute("src"); URL.revokeObjectURL(oldUrl); },
-        (getSettings().wallFade || 2) * 1000 + 600);
-    }
+    const oldUrls = currentUrl, oldSlide = front;
+    front = back; currentUrl = urls;
+    if (oldUrls) releaseAfterFadeIn(oldSlide, oldUrls, back);   // free the previous photo once the new one fully shows
     if (record && st.current && st.current !== key) st.history = [...(st.history || []), st.current].slice(-50);
     st.current = key;
     st.changedAt = Date.now();
