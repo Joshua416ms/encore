@@ -28,3 +28,9 @@
 - Moved the project to a permanent folder; `git init -b main`.
 - Review before the first commit caught an over-broad `.gitignore` pattern (fixed) and added `.gitattributes` for consistent LF line endings.
 - Scanned the staged content for secrets: none found.
+
+**Published**
+- Public repo: github.com/Joshua416ms/encore. Full-history scan before pushing: no secrets, only the noreply email.
+- Signed Git in with the GitHub device flow (the pop-up window didn't appear; the device code worked).
+- GitHub Pages source set to GitHub Actions. The first automatic run failed (Pages wasn't enabled yet); a manual run succeeded.
+- Verified live at https://joshua416ms.github.io/encore/: HTTPS, CSP present, no console errors, Nightstand reachable, `docs/` not published (404).

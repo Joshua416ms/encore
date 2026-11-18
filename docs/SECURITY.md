@@ -61,8 +61,8 @@ inline `style=""` attributes (accent swatches, forecast bars). That's a small, a
 
 | # | Item | Status |
 |---|---|---|
-| 1 | Project in a permanent folder with Git | In progress |
-| 2 | Commit email set to the GitHub noreply address | Pending your address |
+| 1 | Project in a permanent folder with Git | Done |
+| 2 | Commit email set to the GitHub noreply address | Done, verified in history |
 | 3 | Spotify design rules (logo, link back, no blurred art, 8px corners, full text viewable) | Done |
 | 4 | Least-privilege scopes (2) | Done |
 | 5 | CSP on both pages | Done, verified |
