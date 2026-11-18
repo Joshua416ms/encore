@@ -1,9 +1,12 @@
 # Encore
 
-A full-screen iPad display with two switchable modes:
+A full-screen iPad photo frame with a Spotify music widget. Swipe between three display modes:
 
-- **Encore**: a Now Playing screen for your Spotify account, with large album artwork, track details, a live progress bar and playback controls.
-- **Nightstand**: a bedside clock with weather, an analog clock and calendar, a photo frame, and a red night mode.
+1. **Photos**: your own photo collections (for example images saved from Cosmos) rotate full screen, with a resizable Spotify widget and clock in the corners.
+2. **Album artwork**: the current Spotify cover, as large as the screen allows.
+3. **Clock**: large time and date.
+
+A separate **Nightstand** app (clock, weather, calendar, photo frame, red night mode) is one tap away in Settings.
 
 It's a web app you add to the iPad Home Screen. There's no server, no build step and no third-party JavaScript.
 
@@ -14,9 +17,10 @@ It's a web app you add to the iPad Home Screen. There's no server, no build step
 
 | Part | Status |
 |---|---|
-| Spotify sign-in, Now Playing, controls, device switching | Built. Being tested with a real account |
+| Spotify sign-in, live track info, widget | Built and tested with a real account |
+| Photo collections (import from Files), rotation, three display modes | Built and tested in the browser |
 | Nightstand (clock, weather, calendar, photos, night mode) | Built and working |
-| Cosmos wallpaper collections | Planned (Cosmos has no public API, so images will be imported from Files) |
+| Direct Cosmos account connection | Not possible: Cosmos has no public API. Photos are imported from Files instead |
 
 ## Requirements
 
@@ -27,7 +31,7 @@ It's a web app you add to the iPad Home Screen. There's no server, no build step
 ## Run it on your computer
 
 ```bash
-python -m http.server 5173 --bind 127.0.0.1 --directory app
+python tools/serve.py
 ```
 
 Then open http://127.0.0.1:5173/.

@@ -41,7 +41,16 @@ or overlaid and has 8px corners; truncated text can be expanded by tapping it; t
 
 Only the chosen latitude/longitude (or the search text) is sent. Responses are coerced to numbers before display.
 
-## Cosmos (not implemented)
+**Cover images** (`https://i.scdn.co/…`): the largest size Spotify provides is **640 × 640 px**, so artwork mode upscales it on
+an iPad screen. The image server sends `Access-Control-Allow-Origin: *` (checked 2026-11-18), which allows the artwork mode to read
+the cover's edge colours.
+
+## Cosmos (import from Files, implemented)
 
 Verified on 2026-11-18: Cosmos (cosmos.so) publishes **no official API**. Third-party tools use undocumented internal endpoints,
-which this project deliberately does not use. The planned approach is importing images you download from Cosmos via the iPad Files picker.
+which this project deliberately does not use.
+
+**What is implemented instead:** download images in Cosmos (each image's **Download** option), save them to a folder in Files, then
+in Encore go to **Settings → Photos**, name a collection and choose the photos. Encore stores a screen-sized copy, a thumbnail and some
+analysis (focal point, corner brightness) in IndexedDB on the device. Adding the same original file again is detected (SHA-256) and skipped.
+Nothing is uploaded anywhere.

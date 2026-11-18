@@ -18,7 +18,9 @@ _Last updated: 2026-11-18. To report a vulnerability, see [/SECURITY.md](../SECU
 | **Authorization code interception** | Yes | PKCE: the code is useless without the verifier |
 | **Excess permissions** (Broken access control) | Yes | Only 2 scopes (see AUTHENTICATION.md) |
 | **Unsafe links from API data** | Yes. "Open Spotify" uses an API-provided URL | `safeSpotifyUrl()` only accepts `https://open.spotify.com/…` |
-| **Vulnerable dependencies** | Minimal | No JavaScript libraries. External resources: Google Fonts CSS only |
+| **Vulnerable dependencies** | Minimal | No JavaScript libraries and (since the typography update) no external stylesheets or fonts. Encore loads only its own files plus Spotify images/API |
+| **Untrusted image files** (photo import) | Yes. You import files from Files | Images are decoded by the browser's own image decoder (sandboxed) and only ever displayed as images: never parsed as HTML or run. File names are shown with `textContent`. Imports stay on the device |
+| **Reading pixels of remote images** | Yes. Artwork mode samples cover colours | Only possible because Spotify's image server allows it (`Access-Control-Allow-Origin: *`); the image is loaded with `crossOrigin="anonymous"`, so no cookies are sent |
 | **SQL injection** | No | There's no database server or SQL anywhere |
 | **Clickjacking** (page embedded in another site) | Low | Can't be fully blocked on GitHub Pages: `frame-ancestors` only works as a server header, and Pages can't set custom headers. Accepted, low impact |
 | **Physical access** | Yes | Anyone with the unlocked iPad controls your playback. Use a passcode and Guided Access |
@@ -36,13 +38,15 @@ Encore's policy (`app/index.html`):
 | `script-src 'self'` | Only our own `.js` files | No inline scripts, no scripts from other sites. Injected `<script>` won't run |
 | `connect-src` | `accounts.spotify.com`, `api.spotify.com` | Even injected code couldn't send tokens anywhere else |
 | `img-src` | Our files, Spotify image servers, `data:`, `blob:` | Album art loads; tracking images from elsewhere don't |
-| `style-src` / `font-src` | Our CSS, Google Fonts | The serif font loads |
+| `style-src 'self'` | Only our own CSS file | No injected stylesheets (Google Fonts removed 2026-11-18) |
 | `object-src 'none'`, `base-uri 'none'`, `form-action 'none'` | Nothing | Blocks plug-ins, `<base>` hijacking and form posting elsewhere |
 
 Nightstand has its own policy that allows only Open-Meteo for `connect-src`. It also needs `style-src 'unsafe-inline'`, because it sets a few
 inline `style=""` attributes (accent swatches, forecast bars). That's a small, accepted weakening for styles only; scripts remain strict.
 
 **Verified 2026-11-18:** on Nightstand, a test request to `https://example.com` was blocked by the CSP, and Open-Meteo was allowed.
+On Encore, even a request to its own server (`fetch('/js/…')`) is blocked, because `connect-src` lists only Spotify.
+That is intended: the page never needs to fetch anything else.
 
 ## Secrets: rules for this repo
 
@@ -69,5 +73,6 @@ inline `style=""` attributes (accent swatches, forecast bars). That's a small, a
 | 6 | Sign-in code always removed from the address bar | Done, verified |
 | 7 | API URLs checked before use as links | Done |
 | 8 | Weather values forced to numbers before display | Done |
-| 9 | Host the font ourselves (removes the Google request) | Open, low priority |
-| 10 | Real-account test of sign-in and controls | Open |
+| 9 | Remove the Google Fonts request | Done (system font only) |
+| 10 | Real-account test of sign-in and live track info | Done 2026-11-18 (sign-in, track, artwork, device). Playback buttons not yet pressed in a test |
+| 11 | Spotify rules in the new modes (whole cover in artwork mode, logo shown, ≤ 8 px corners, artwork or info always shown) | Done, verified |

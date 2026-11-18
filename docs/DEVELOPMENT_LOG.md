@@ -34,3 +34,15 @@
 - Signed Git in with the GitHub device flow (the pop-up window didn't appear; the device code worked).
 - GitHub Pages source set to GitHub Actions. The first automatic run failed (Pages wasn't enabled yet); a manual run succeeded.
 - Verified live at https://joshua416ms.github.io/encore/: HTTPS, CSP present, no console errors, Nightstand reachable, `docs/` not published (404).
+
+**Photo-frame redesign + display modes** (two requests, built together)
+- First real sign-in with the owner's Premium account: connected; live track, artwork and device shown.
+- New: `wallpapers/importer.js`, `wallpapers/engine.js`, `ui/layout.js`, `ui/photos.js`, `ui/modes.js`, `ui/artmode.js`, `tools/serve.py`.
+  Rewritten: `index.html`, `css/app.css`, `ui/settings.js`, `main.js`. Small change: `ui/nowplaying.js` (`onTrack` callback). Spotify code unchanged.
+- Tested in the browser (real Spotify account, synthetic photos), including:
+  import of 4 photos and duplicate detection; focal points and corner brightness; widget darker over bright photos (0.67 vs 0.38);
+  swipe rules (play button, slow drag, vertical drag, last mode, dots); artwork mode (640×640 cover, uncropped, edge colours, logo link);
+  clock mode; +/− from 80% to 180% with proportional sizes; independent sliders and auto-stacking; press-and-hold drag to a corner;
+  persistence after reload (mode, size, position, current photo); 1180×820, 1366×1024 and 820×1180 screens; long titles.
+- Bugs found and fixed while testing: clock unreadable over bright photos; title too small at 70%; progress bar floating; widget touching the dots.
+- Not tested yet: pressing the playback buttons (to avoid interrupting the owner's music), and the deployed version on the iPad itself.

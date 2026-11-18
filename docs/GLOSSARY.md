@@ -10,6 +10,22 @@ Each term includes where it appears in this project.
 
 **Backend**: Code running on a server you control. _We have none; the app is static files._
 
+**Blob / object URL**: A Blob is a chunk of binary data (like an image) in memory; `URL.createObjectURL(blob)` gives it a temporary `blob:` address an `<img>` can show. It must be released with `revokeObjectURL` or the memory stays used. _`wallpapers/engine.js`, `ui/photos.js`._
+
+**Cache / Cache-Control**: Browsers keep copies of files to load faster. The `Cache-Control` header tells them how long a copy may be reused. _`tools/serve.py` sends `no-store` while developing; GitHub Pages allows ~10 minutes._
+
+**CORS (Cross-Origin Resource Sharing)**: Rules that decide whether a page may read data from another site. An image from another site can always be *shown*, but its pixels may only be *read* if that site allows it. _Spotify's image server does, so artwork mode can sample colours._
+
+**CSS custom property (variable)**: A named value like `--art: 120px` that CSS can reuse. _`ui/layout.js` sets one per setting, which is what makes the widget's parts independently sizable._
+
+**CSS grid / grid areas**: A layout system that places elements into named regions. _The widget's `art`, `head`, `meta`, `prog`, `ctl` areas._
+
+**Debounce**: Waiting a short moment so many rapid actions become one. _Settings are saved 150 ms after the last change._
+
+**Focal point**: The part of a photo where the subject is. _Found on import and used for `object-position`, so cropping keeps the subject._
+
+**Hash (SHA-256)**: A fixed-length fingerprint computed from a file's bytes; identical files give identical hashes. _Used to skip duplicate imports._
+
 **Client ID**: The public identifier of your Spotify developer app. Not a secret.
 
 **Client Secret**: A private password for a Spotify app, used by server-side apps. _Encore doesn't use one; never add it._
@@ -47,6 +63,10 @@ Each term includes where it appears in this project.
 **OWASP Top 10**: A widely used list of the most common web application security risks.
 
 **PKCE**: An OAuth extension that makes an intercepted sign-in code useless without a secret verifier kept in the browser.
+
+**Pointer Events**: One browser API for touch, pen and mouse (`pointerdown`, `pointermove`, `pointerup`). _`ui/modes.js` uses them to recognise swipes; `ui/layout.js` for press-and-hold dragging._
+
+**Schema (settings)**: A list describing each option (key, label, type, limits) from which the UI is generated. _`SCHEMA` in `ui/settings.js`._
 
 **Polling**: Asking a server for updates on a timer, because it can't push them. _`sync()` in `playback.js`._
 

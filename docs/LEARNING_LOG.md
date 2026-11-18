@@ -26,6 +26,39 @@
 | `?code=` left in the address bar | Redirect handling skipped when no Client ID was stored | A deliberate test with a fake `?code=` | Always strip first in `handleRedirect()` |
 | Code folder `app/js/wallpapers/` silently ignored by Git | `.gitignore` pattern `wallpapers/` matches that name at any depth | `git status --short --ignored` before the first commit | Anchored it: `/wallpapers/` |
 | "LF will be replaced by CRLF" warnings | Windows and Unix use different line-ending characters | Read the warning text | Added `.gitattributes` (`* text=auto eol=lf`) |
+| New design didn't appear; new files returned 404 | The preview server was running from the **old** project folder | Server log showed 404s; `Get-NetTCPConnection` + the preview list showed its working folder | Ran `tools/serve.py` from the project folder |
+| Still the old page after fixing the server | **Browser cache**: old files counted as "fresh" | The server log showed the browser never asked for the files | Re-downloaded with `fetch(..., {cache:"reload"})`; `tools/serve.py` sends `Cache-Control: no-store` |
+| `fetch('/js/main.js')` failed inside Encore | Our own **CSP** only allows connections to Spotify | Error was "Failed to fetch" in the page; worked from a non-HTML file | Not a bug: the policy working as designed |
+| Clock unreadable over a white photo | White text + shadow isn't enough on bright backgrounds | Zoomed screenshot during testing | Frosted backing when that corner is bright |
+| Title too small at minimum widget size | 0.7 × 16 px = 11.2 px | Measured `fontSize` while pressing − | Minimum raised to 0.8 (12.8 px) |
+| Progress bar floating far above the controls | The wrong grid row was set to stretch | Screenshot with tall artwork | Progress row stretches; bar sits on the controls |
+| Wide widget in a bottom corner touched the mode dots | Bottom slots didn't reserve the dots row | Compared `getBoundingClientRect()` of both | Bottom slots sit 28 px higher |
+
+## Session 2: 2026-11-18 — photo frame, modes, widget
+
+### Built
+- Photo import from Files (Cosmos has no API), on-device library, rotating wallpaper engine.
+- Spotify player turned into a corner widget with independent sizing, drag-to-corner and +/− resizing.
+- Three display modes (photos + widget, full-screen artwork, clock) with swipe and dots.
+- One-font typography system; Google Fonts removed.
+
+### Concepts introduced
+- CSS custom properties as a bridge between settings (JavaScript) and layout (CSS).
+- CSS grid areas; switching layouts with a class (`stacked`, `no-art`).
+- IndexedDB vs. localStorage; Blobs and object URLs (and releasing them to free memory).
+- Hashing (SHA-256) for duplicate detection; image downscaling with canvas.
+- Pointer Events; telling a tap, a swipe, a slow drag and a press-and-hold apart.
+- CORS: why the page may read Spotify cover pixels but not every image.
+- Browser caching and `Cache-Control`; how to check which server is really answering.
+- Debouncing saves; a schema-driven settings UI.
+
+### Questions you should be able to answer
+8. Why does changing the artwork size not change the text size? Which file sets each value?
+9. What is the difference between the − / + buttons and the individual sliders?
+10. How does the app tell a swipe from a tap on the play button?
+11. Why does artwork mode show the whole cover instead of filling the screen?
+12. Why are photos stored in IndexedDB and not localStorage? What would happen to memory if object URLs were never revoked?
+13. A change you made doesn't show up in the browser. What three things do you check, in what order?
 
 ### Questions you should be able to answer
 1. Why doesn't Encore need a Client Secret, and what does PKCE do instead?
