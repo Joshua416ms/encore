@@ -3,9 +3,12 @@
 name: Deploy app to GitHub Pages
 
 on:
-  push:
-    branches: [main]
-    paths: ["app/**", ".github/workflows/pages.yml"]
+  # Automatic deploys are paused while the repository is private: GitHub Pages isn't available
+  # for private repos on a free account, so every run would fail. When the repo goes public,
+  # remove the "#" from the four lines below to deploy automatically again.
+  # push:
+  #   branches: [main]
+  #   paths: ["app/**", ".github/workflows/pages.yml"]
   workflow_dispatch: {}   # adds a "Run workflow" button in the Actions tab
 
 # Least privilege for the automation token: read the code, write to Pages, prove identity to Pages.
