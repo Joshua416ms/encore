@@ -24,12 +24,30 @@ finger up   ─▶ moved > 60 px sideways, more sideways than vertical, within 0
 ```
 Moving the widget needs a **press-and-hold (0.4 s)** first, so a quick flick across the widget is a swipe, not a drag.
 
+## 2b. Dragging the widget (`ui/layout.js`)
+
+```
+finger down on the widget ─▶ on a button / link / progress bar / slider?  → ignore (a normal tap)
+   hold 0.4 s without moving > 10 px?  no → cancelled (if it was a quick flick, modes.js treats it as a swipe)
+                                       yes → widget lifts (scale + shadow); modes.js ignores swipes (isDragging)
+finger moves ─▶ new position = start + finger offset, clamped to the usable area (#safeArea)
+               → applied once per screen frame (requestAnimationFrame) as transform: translate3d(x, y)
+finger up   ─▶ position → fractions wX, wY of the free space; within 32 px of a corner → snap to it
+               → settings.wPos = corner or "custom" → saved → short animation into place
+               → the click that ends the drag is swallowed; the clock moves away if the widget now covers it
+resize / rotation / −+ ─▶ same fractions re-applied → the widget stays proportionally in place and on screen
+```
+
 ## 3. A photo appears (wallpaper engine)
 
 ```
 engine.setCollection(id) → library.imageKeys(id) → pick next (shuffle bag, or next in order)
-  → library.getImage(key) → URL.createObjectURL(display blob) → hidden <img> → decode()
-  → crossfade (CSS opacity) → revoke the previous image's URL after the fade (frees memory)
+  → library.getImage(key) → object URLs for the photo AND its thumbnail → hidden slide
+       (sharp photo sized to its own aspect ratio, never cropped; blurred thumbnail behind; darkening + vignette)
+  → wait until both are decoded (unreadable photo → skipped, try the next; at most 3 in a row)
+  → crossfade the two slides (CSS opacity)
+  → free the old slide's images only after the NEW slide's fade-in has finished (transitionend, or a check that
+    the new slide is at opacity 1). If that can't be confirmed, the old images stay until the slide is reused.
   → onShow({lum, …}) → main.js → layout.setWallpaperInfo (darker widget/clock over bright corners)
                                 → photos.markCurrent (thumbnail highlight)
 Timer: next change = last change + interval; paused while the app is hidden.
@@ -64,7 +82,7 @@ See [AUTHENTICATION.md](AUTHENTICATION.md).
 | `encore.spotify.token` | `auth.js` | Access token, refresh token, expiry, scopes |
 | `encore.spotify.verifier`, `encore.spotify.state` | `auth.js` | Temporary sign-in values; deleted after sign-in |
 | `encore.spotify.clientId` | `main.js` | Your Client ID |
-| `encore.settings` | `main.js` (debounced 150 ms) | Every option: mode, widget sizes/position, clock, photo rotation |
+| `encore.settings` | `main.js` (debounced 150 ms) | Every option: mode, widget sizes, widget position (`wPos` + fractions `wX`/`wY`), clock, photo look and rotation, album-art margin |
 | `encore.settings.tab` | `settings.js` | Last open settings tab |
 | `encore.wall.state` | `engine.js` | Current photo, shuffle bag, history, last change time |
 | `standby.app` | `main.js`, `nightstand.js` | Last-used app |

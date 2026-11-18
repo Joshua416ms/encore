@@ -33,6 +33,26 @@
 | Title too small at minimum widget size | 0.7 × 16 px = 11.2 px | Measured `fontSize` while pressing − | Minimum raised to 0.8 (12.8 px) |
 | Progress bar floating far above the controls | The wrong grid row was set to stretch | Screenshot with tall artwork | Progress row stretches; bar sits on the controls |
 | Wide widget in a bottom corner touched the mode dots | Bottom slots didn't reserve the dots row | Compared `getBoundingClientRect()` of both | Bottom slots sit 28 px higher |
+| Blank screen between photos (in a hidden tab) | Old photo freed on a **fixed timer** while the fade was paused | Sampled both slides' opacity and `src` several times during a fade | Free only after the new slide's fade-in is confirmed |
+| Screenshots/measurements "one step behind" | The browser pane was hidden → 0 animation frames → CSS transitions frozen mid-way | `requestAnimationFrame` counter = 0; `document.getAnimations()` listed running transitions | Tests call `animation.finish()` before measuring |
+| Test-only `<style>` had no effect | Our own CSP (`style-src 'self'`) blocks injected styles | Computed `transition` was unchanged | Not a bug: the policy works; used the Web Animations API instead |
+| Clock never placed in a corner (hidden page) | Placement waited for an animation frame | Clock's parent was not a corner slot | Place it immediately; re-check on `transitionend` |
+
+## Session 3: 2026-11-18 — photo display and dragging
+
+### Concepts introduced
+- `object-fit: contain` vs `cover`; `aspect-ratio`; why a blurred *thumbnail* is as good as a blurred full image.
+- CSS transitions and their events (`transitionend`); why timers are a poor proxy for "the animation finished".
+- Hidden pages: no animation frames, slowed timers, no `resize` events until visible.
+- Object URL lifetime and memory leaks; tracking resources per owner.
+- Storing positions as fractions (resolution- and orientation-independent).
+- Gesture disambiguation: tap vs. swipe vs. press-and-hold drag; pointer capture.
+
+### Questions you should be able to answer
+14. Why does the blurred background use the 360 px thumbnail instead of the full photo?
+15. Why is "wait 2.6 s, then free the old photo" unsafe, and what does the app do instead?
+16. Why is the widget's position saved as fractions instead of pixels? What happens when you rotate the iPad?
+17. How does the app decide whether a touch on the widget is a tap, a swipe or a drag?
 
 ## Session 2: 2026-11-18 — photo frame, modes, widget
 

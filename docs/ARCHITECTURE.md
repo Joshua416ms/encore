@@ -41,7 +41,7 @@ The screen is a **photo frame first**. Three display modes are reached by swipin
 |---|---|---|
 | `main.js` | Startup, wiring, clock text, wake lock, connect pop-up | Everything (only place that knows all modules) |
 | `ui/modes.js` | Current mode, dots, swipe gesture | `settings` (saves `mode`) |
-| `ui/layout.js` | Widget size/position (CSS variables), corner slots, drag-to-corner, +/− size, clock placement, readability tint | `settings` |
+| `ui/layout.js` | Widget size (CSS variables), free position of the dock (fractions `wX`/`wY`), press-and-hold dragging, +/− size, clock placement, readability tint | `settings` |
 | `ui/nowplaying.js` | Widget contents and Spotify buttons | `playback` |
 | `ui/artmode.js` | Full-screen cover + edge-colour fill | receives tracks from `nowplaying` via `main` |
 | `ui/settings.js` | Settings sheet; options built from `SCHEMA`; `DEFAULTS` | `onChange` callback |
@@ -64,6 +64,11 @@ The screen is a **photo frame first**. Three display modes are reached by swipin
 | Photos imported from Files | Cosmos has no official API; undocumented endpoints are excluded on purpose | You download from Cosmos, then import |
 | Settings → CSS custom properties | Each size is its own variable, so they change independently | Limits (clamps) live in `layout.js` |
 | One `wScale` multiplier for +/− | Whole-widget resizing keeps proportions | Separate from the individual sliders by design |
-| Artwork mode shows the whole cover | Spotify forbids cropping/blurring cover art | Sides are filled with sampled colours, not a full-bleed image |
+| Photos shown whole (`contain`) over a blurred copy | Nothing is ever cropped or stretched; the screen still feels full | Two layers per photo; the blurred one uses the 360 px thumbnail to keep memory and GPU work low |
+| Free the old photo only after the new one has fully faded in | Browsers pause animations in hidden tabs/backgrounded apps; a fixed timer caused a blank frame in testing | If the fade can't be confirmed, the old photo is kept a little longer (memory, never a blank) |
+| No early pre-decoding of the next photo | Decoding right before the fade already hides loading | Would cost a third full-size photo in memory |
+| Artwork mode: whole cover with a margin (default 9% of the short side) | Spotify forbids cropping/blurring cover art; `vmin` adapts to every iPad and orientation (≈1–1.8 cm) | Sides filled with sampled colours (or black), never a blurred cover |
+| Widget position stored as fractions (`wX`, `wY` from 0 to 1) of the free space | Always on screen; survives resizing and rotation; corners are just (0,0)…(1,1) | Exact pixel position changes slightly when the widget's size changes (it stays proportionally in place) |
+| Dragging needs a 0.4 s hold | Separates "move the widget" from "tap a control" and "swipe between modes" | A deliberate pause before dragging |
 | Polling Spotify | The Web API has no push updates | Up to ~3 s delay for changes made elsewhere |
 | System font only | Consistent typography; removed the Google Fonts request | — |

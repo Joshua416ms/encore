@@ -46,3 +46,20 @@
   persistence after reload (mode, size, position, current photo); 1180×820, 1366×1024 and 820×1180 screens; long titles.
 - Bugs found and fixed while testing: clock unreadable over bright photos; title too small at 70%; progress bar floating; widget touching the dots.
 - Not tested yet: pressing the playback buttons (to avoid interrupting the owner's music), and the deployed version on the iPad itself.
+
+**Whole photos + blurred extension; album-art spacing**
+- Photos: each slide = sharp whole photo (sized to its own aspect ratio, `contain`) + blurred 360 px thumbnail + darkening + vignette.
+- Album-art mode: cover = short side minus a `vmin` margin (default 9%); background colours from the cover or black (no blur: Spotify rule).
+- New settings: photo size, blurred background on/off, blur, background darkness, vignette, transition length (0.5–6 s), album-art spacing and background.
+- Tested: portrait/landscape/square/panorama photos at 1180×820 and 820×1180 (ratios exact, fully on screen); broken photo skipped;
+  album-art margins 1.42 cm (11" Air), 1.77 cm (12.9" Pro), 1.04 cm (mini portrait); every new setting applies live and persists.
+- **Bug found and fixed:** the old photo was freed on a fixed timer; when animations were paused (hidden tab) the visible slide lost
+  its image (blank screen). Now freed only after the new slide has fully faded in; per-slide URL tracking prevents leaks.
+
+**Free dragging of the widget**
+- Widget + −/+ buttons moved into one dock positioned by fractions `wX`/`wY`; press-and-hold 0.4 s, follow finger, clamp to screen,
+  snap within 32 px of a corner; Settings presets glide to corners; "Custom (dragged)" option; clock moves away if covered.
+- Tested (simulated touch): presets, middle, past every edge (clamped), corner snap; holds on play/next/progress bar/logo never drag;
+  quick flick = mode swipe, not a drag; resizing 80–180% keeps the position fractions; reload restores the position; rotation re-fits and returns.
+- Found and fixed: clock placement depended on an animation frame (never ran in a hidden page) → now immediate.
+- Not tested yet: dragging with a real finger on the iPad.
