@@ -1,0 +1,44 @@
+# Publishes ONLY the app/ folder to GitHub Pages whenever app files change on the main branch.
+# docs/ and everything else stay out of the public website (they are still visible in the repo).
+name: Deploy app to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths: ["app/**", ".github/workflows/pages.yml"]
+  workflow_dispatch: {}   # adds a "Run workflow" button in the Actions tab
+
+# Least privilege for the automation token: read the code, write to Pages, prove identity to Pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two deployments at once.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false   # don't leave a Git token lying around in the build machine
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Package the app folder
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: app
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

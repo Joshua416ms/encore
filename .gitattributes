@@ -1,0 +1,8 @@
+# Store text files with LF line endings in the repository, whatever computer they were edited on.
+* text=auto eol=lf
+
+# Images are binary: never touch their bytes.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary

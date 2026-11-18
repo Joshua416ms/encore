@@ -1,0 +1,32 @@
+# .gitignore — files Git must never track (and therefore never upload to GitHub).
+# A line is a file or folder pattern. "#" starts a comment.
+
+# --- Secrets and local configuration (never commit these) ---
+.env
+.env.*
+*.key
+*.pem
+secrets/
+config.local.js
+
+# --- Personal images (e.g. downloaded Cosmos collections). They belong to their creators. ---
+# The leading "/" means "only at the top of the project". Without it, "wallpapers/" would also
+# match the code folder app/js/wallpapers/ (that mistake was caught by reviewing `git status --ignored`).
+/wallpapers/
+/cosmos-export/
+*.zip
+
+# --- Local tool settings ---
+.claude/
+.vscode/
+.idea/
+
+# --- Operating-system clutter ---
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# --- Logs and temporary files ---
+*.log
+*.tmp
+node_modules/

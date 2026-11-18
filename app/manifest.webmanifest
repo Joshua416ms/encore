@@ -1,0 +1,11 @@
+{
+  "name": "Encore",
+  "short_name": "Encore",
+  "description": "A full-screen Now Playing display for iPad.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#07080a",
+  "theme_color": "#07080a"
+}

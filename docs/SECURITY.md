@@ -1,0 +1,73 @@
+# Security design
+
+_Last updated: 2026-11-18. To report a vulnerability, see [/SECURITY.md](../SECURITY.md)._
+
+## What we protect
+
+1. **Your Spotify tokens.** Whoever holds them can control your playback.
+2. **Your location** (Nightstand weather), stored on your device.
+3. **Your personal identity in the public repo** (Git commit email).
+
+## Threats that apply to this architecture
+
+| Threat (OWASP category) | Applies? | Status / protection |
+|---|---|---|
+| **XSS**, cross-site scripting (Injection) | Yes. Spotify and weather data appear on screen | Text from APIs is inserted with `textContent`, never as HTML. `innerHTML` is used only with fixed text or numbers checked with `Number()`. The **CSP** blocks injected scripts |
+| **Token theft via XSS** (Cryptographic failures / Auth failures) | Yes. Tokens live in `localStorage`, which any script on the page can read | Defended by the XSS protections above. Tokens only grant playback control |
+| **CSRF on sign-in** (Broken access control) | Yes | Random `state` value checked on return |
+| **Authorization code interception** | Yes | PKCE: the code is useless without the verifier |
+| **Excess permissions** (Broken access control) | Yes | Only 2 scopes (see AUTHENTICATION.md) |
+| **Unsafe links from API data** | Yes. "Open Spotify" uses an API-provided URL | `safeSpotifyUrl()` only accepts `https://open.spotify.com/…` |
+| **Vulnerable dependencies** | Minimal | No JavaScript libraries. External resources: Google Fonts CSS only |
+| **SQL injection** | No | There's no database server or SQL anywhere |
+| **Clickjacking** (page embedded in another site) | Low | Can't be fully blocked on GitHub Pages: `frame-ancestors` only works as a server header, and Pages can't set custom headers. Accepted, low impact |
+| **Physical access** | Yes | Anyone with the unlocked iPad controls your playback. Use a passcode and Guided Access |
+| **Secrets in Git history** | Yes, for a public repo | `.gitignore`; no secrets exist in the code; GitHub push protection (enable it) |
+
+## Content Security Policy (CSP)
+
+A CSP is a list in the page's `<meta>` tag telling the browser what the page may load or contact. Anything else is refused.
+
+Encore's policy (`app/index.html`):
+
+| Directive | Allowed | Effect |
+|---|---|---|
+| `default-src 'self'` | Our own files | Starting rule: everything else is denied |
+| `script-src 'self'` | Only our own `.js` files | No inline scripts, no scripts from other sites. Injected `<script>` won't run |
+| `connect-src` | `accounts.spotify.com`, `api.spotify.com` | Even injected code couldn't send tokens anywhere else |
+| `img-src` | Our files, Spotify image servers, `data:`, `blob:` | Album art loads; tracking images from elsewhere don't |
+| `style-src` / `font-src` | Our CSS, Google Fonts | The serif font loads |
+| `object-src 'none'`, `base-uri 'none'`, `form-action 'none'` | Nothing | Blocks plug-ins, `<base>` hijacking and form posting elsewhere |
+
+Nightstand has its own policy that allows only Open-Meteo for `connect-src`. It also needs `style-src 'unsafe-inline'`, because it sets a few
+inline `style=""` attributes (accent swatches, forecast bars). That's a small, accepted weakening for styles only; scripts remain strict.
+
+**Verified 2026-11-18:** on Nightstand, a test request to `https://example.com` was blocked by the CSP, and Open-Meteo was allowed.
+
+## Secrets: rules for this repo
+
+- The Client Secret is never needed. Never add it to any file.
+- Never commit `.env` files, tokens, screenshots that show tokens, or exported browser storage.
+- **If a secret is committed:** treat it as exposed, even if you delete it in the next commit, because it stays in Git history.
+  Rotate it immediately: in the Spotify dashboard, use **Reset** for a Client Secret; remove app access at spotify.com/account/apps for tokens.
+  Then clean the history or recreate the repo.
+
+## Repository settings to keep on
+
+- Settings → Code security: **Secret scanning**, **Push protection**, **Private vulnerability reporting**.
+- Your GitHub account → Settings → Emails: **Keep my email addresses private** and **Block command line pushes that expose my email**.
+
+## Prioritized checklist
+
+| # | Item | Status |
+|---|---|---|
+| 1 | Project in a permanent folder with Git | In progress |
+| 2 | Commit email set to the GitHub noreply address | Pending your address |
+| 3 | Spotify design rules (logo, link back, no blurred art, 8px corners, full text viewable) | Done |
+| 4 | Least-privilege scopes (2) | Done |
+| 5 | CSP on both pages | Done, verified |
+| 6 | Sign-in code always removed from the address bar | Done, verified |
+| 7 | API URLs checked before use as links | Done |
+| 8 | Weather values forced to numbers before display | Done |
+| 9 | Host the font ourselves (removes the Google request) | Open, low priority |
+| 10 | Real-account test of sign-in and controls | Open |
