@@ -1,6 +1,8 @@
 // Photos tab: create collections from picked files, choose which one is shown, browse its photos.
 // Talks to wallpapers/library.js (storage), wallpapers/importer.js (processing) and the engine (display).
-import { listCollections, createCollection, deleteCollection, getImage, images, usage } from "../wallpapers/library.js";
+import { listCollections, createCollection, deleteCollection, getImage, images, usage, setHidden } from "../wallpapers/library.js";
+
+export const PERIODS = [["morning", "Morning (6–12)"], ["afternoon", "Afternoon (12–18)"], ["evening", "Evening (18–22)"], ["night", "Night"]];
 import { importFiles } from "../wallpapers/importer.js";
 
 const $ = id => document.getElementById(id);
@@ -12,9 +14,15 @@ export function createPhotos({ settings, save, engine, toast, onCollectionChange
   const track = blob => { const u = URL.createObjectURL(blob); urls.push(u); return u; };
   const releaseAll = () => { urls.forEach(u => URL.revokeObjectURL(u)); urls = []; };
 
+  // Each render takes a "ticket". If a newer render starts while this one waits for the database, this one stops:
+  // otherwise two overlapping renders would both add their thumbnails (found in testing: duplicates).
+  let renderTicket = 0;
+
   async function render() {
-    releaseAll();
+    const mine = ++renderTicket;
     const cols = await listCollections();
+    if (mine !== renderTicket) return;
+    releaseAll();
     const list = $("collectionList");
     list.textContent = "";
     if (!cols.length) {
@@ -41,13 +49,30 @@ export function createPhotos({ settings, save, engine, toast, onCollectionChange
       list.append(row);
     }
 
+    renderPeriods(cols);
+
     const active = cols.find(c => c.id === settings.wallCollection);
+    const all = active ? await images(active.id) : [];
+    if (mine !== renderTicket) return;
     $("activeGroup").hidden = !active;
+    $("hiddenGroup").hidden = true;
     if (active) {
       $("activeTitle").textContent = `Showing: ${active.name}`;
-      const grid = $("thumbs");
+      const grid = $("thumbs"), hiddenGrid = $("hiddenThumbs");
       grid.textContent = "";
-      for (const rec of await images(active.id)) {
+      hiddenGrid.textContent = "";
+      for (const rec of all.filter(r => r.hidden)) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.setAttribute("aria-label", "Bring this photo back into rotation");
+        const img = document.createElement("img");
+        img.alt = ""; img.loading = "lazy"; img.src = track(rec.thumb);
+        btn.append(img);
+        btn.addEventListener("click", async () => { await setHidden(rec.key, false); await engine.refresh(); onCollectionChange && onCollectionChange(); render(); });
+        hiddenGrid.append(btn);
+      }
+      $("hiddenGroup").hidden = !hiddenGrid.children.length;
+      for (const rec of all.filter(r => !r.hidden)) {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.dataset.key = rec.key;
@@ -67,6 +92,33 @@ export function createPhotos({ settings, save, engine, toast, onCollectionChange
       : "Photos are stored only on this device. They are never uploaded.";
   }
 
+  // One dropdown per time of day: "Active collection" (default) or a specific collection.
+  function renderPeriods(cols) {
+    const box = $("periodRows");
+    box.textContent = "";
+    settings.wallByPeriod = settings.wallByPeriod || {};
+    for (const [key, label] of PERIODS) {
+      const row = document.createElement("div");
+      row.className = "row";
+      const l = document.createElement("label");
+      l.htmlFor = "period-" + key; l.textContent = label;
+      const sel = document.createElement("select");
+      sel.id = "period-" + key;
+      const def = document.createElement("option");
+      def.value = ""; def.textContent = "Active collection";
+      sel.append(def);
+      for (const c of cols) { const o = document.createElement("option"); o.value = c.id; o.textContent = c.name; sel.append(o); }
+      sel.value = cols.some(c => c.id === settings.wallByPeriod[key]) ? settings.wallByPeriod[key] : "";
+      sel.addEventListener("change", () => {
+        settings.wallByPeriod = { ...settings.wallByPeriod, [key]: sel.value || null };
+        save();
+        onCollectionChange && onCollectionChange();
+      });
+      row.append(l, sel);
+      box.append(row);
+    }
+  }
+
   function button(text, cls, onClick) {
     const b = document.createElement("button");
     b.type = "button"; b.className = cls; b.textContent = text;
@@ -77,8 +129,8 @@ export function createPhotos({ settings, save, engine, toast, onCollectionChange
   async function activate(id) {
     settings.wallCollection = id;
     save();
-    await engine.setCollection(id);
-    onCollectionChange && onCollectionChange();
+    // main.js decides what is shown now (a time-of-day collection may take priority) and switches the engine.
+    onCollectionChange && await onCollectionChange(true);
     render();
   }
 

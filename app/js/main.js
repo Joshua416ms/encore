@@ -4,6 +4,10 @@
 //                                            └─▶ photos.markCurrent     (highlights the thumbnail)
 //   ui/settings ──onChange(key)──▶ main ──▶ layout.apply / engine.reschedule / clock
 //   spotify/playback ──onChange(state)──▶ main ──▶ nowPlaying.render (the widget's contents)
+//                                             └─▶ autoMode.onPlayback  (picks the screen: album art / photos / clock)
+//   nowPlaying ──onTrack(track)──▶ main ──▶ artMode.update (cover; reports its accent colour back)
+//                                       └─▶ lyrics.update  (LRCLIB lyrics, only when turned on)
+//   every minute ──▶ night mode on/off, collection for this time of day
 //
 // Components never reach into each other directly, so each can be changed or replaced on its own.
 import { SPOTIFY_CLIENT_ID } from "./config.js";
@@ -17,6 +21,9 @@ import { createPhotos } from "./ui/photos.js";
 import { createWallpaperEngine } from "./wallpapers/engine.js";
 import { createModes } from "./ui/modes.js";
 import { createArtMode } from "./ui/artmode.js";
+import { createLyricsMode } from "./ui/lyricsmode.js";
+import { createAutoMode } from "./ui/automode.js";
+import { getCollection } from "./wallpapers/library.js";
 
 const $ = id => document.getElementById(id);
 const ls = {
@@ -53,6 +60,35 @@ function tickClock() {
 }
 setInterval(() => { if (!document.hidden) tickClock(); }, 5000);
 
+/* ---------- night mode + time of day ---------- */
+const toMin = t => { const [h, m] = String(t).split(":").map(Number); return (h || 0) * 60 + (m || 0); };
+function isNight(d = new Date()) {
+  if (settings.nightMode === "on") return true;
+  if (settings.nightMode === "off") return false;
+  const now = d.getHours() * 60 + d.getMinutes(), a = toMin(settings.nightFrom), b = toMin(settings.nightTo);
+  return a <= b ? now >= a && now < b : now >= a || now < b;        // the window may cross midnight
+}
+function applyNight() { document.documentElement.classList.toggle("night", isNight()); }
+
+// Which part of the day it is, for "collections by time of day". Night follows the night-mode schedule.
+function periodNow(d = new Date()) {
+  if (settings.nightMode !== "off" && isNight(d)) return "night";
+  const h = d.getHours();
+  return h >= 6 && h < 12 ? "morning" : h >= 12 && h < 18 ? "afternoon" : h >= 18 && h < 22 ? "evening" : "night";
+}
+
+// Shows the right collection: the one assigned to this time of day, otherwise your active collection.
+let syncing = Promise.resolve();
+function syncCollection(force = false) {
+  syncing = syncing.then(async () => {
+    let want = (settings.wallByPeriod || {})[periodNow()] || settings.wallCollection;
+    if (want && want !== settings.wallCollection && !(await getCollection(want).catch(() => null))) want = settings.wallCollection;
+    if (force || want !== engine.collection) { try { await engine.setCollection(want); } catch { /* storage unavailable */ } }
+    updateEmpty();
+  });
+  return syncing;
+}
+
 /* ---------- components ---------- */
 const layout = createLayout({ settings, save, onPositionChange: () => settingsUI.sync() });
 
@@ -65,7 +101,7 @@ const engine = createWallpaperEngine({
     updateEmpty();
   },
 });
-const photos = createPhotos({ settings, save, engine, toast, onCollectionChange: updateEmpty });
+const photos = createPhotos({ settings, save, engine, toast, onCollectionChange: force => syncCollection(force) });
 
 function updateEmpty() {
   const has = engine.count > 0;
@@ -82,15 +118,40 @@ const playback = createPlayback(client, (state, err) => {
     return;
   }
   nowPlaying.render(state, err);
+  if (!err) autoMode.onPlayback(state);
   if (settingsUI.isOpen()) settingsUI.sync();
 });
-const artMode = createArtMode();
-const nowPlaying = createNowPlaying(playback, { onTrack: t => artMode.update(t, true) });
+
+// Accent colour (feature 3): from the album art, Spotify green, or white.
+let artAccent = null;
+function applyAccent() {
+  const root = document.documentElement;
+  if (settings.accent === "art") root.style.setProperty("--accent", artAccent || "#1ed760");   // fallback: Spotify green
+  else root.style.removeProperty("--accent");
+}
+const artMode = createArtMode({ onAccent: c => { artAccent = c; applyAccent(); } });
+const lyrics = createLyricsMode({ playback, settings });
+let lastTrack = null;
+const nowPlaying = createNowPlaying(playback, {
+  onTrack: t => { lastTrack = t; artMode.update(t, true); lyrics.update(t); },
+});
 
 const modes = createModes({
   settings, save,
   isDragging: () => layout.isDragging(),
-  onModeChange() { document.body.classList.remove("ui"); },
+  onModeChange(mode, source) {
+    document.body.classList.remove("ui");
+    if (source === "user") autoMode.onUserChoice();      // you chose: automatic switching steps back for 30 min
+    if (mode === "lyrics") lyrics.refresh();
+  },
+});
+const autoMode = createAutoMode({ settings, modes, isNight });
+
+/* ---------- hide the current photo ---------- */
+$("hidePhoto").addEventListener("click", async e => {
+  e.stopPropagation();
+  if (await engine.hideCurrent()) toast("Photo hidden. Bring it back in Settings › Photos.");
+  updateEmpty();
 });
 
 const WALL_KEYS = ["wallInterval", "wallPaused", "wallOrder"];
@@ -101,6 +162,12 @@ const settingsUI = createSettings({
     layout.apply({ animate: key === "wPos" });   // choosing a corner glides the widget there
     if (key === "h24") tickClock();
     if (WALL_KEYS.includes(key)) engine.reschedule();
+    if (key === "wallInterval") syncCollection(true);                 // e.g. switching to "photo of the day"
+    if (key === "kbOn" || key === "kbStrength") syncCollection(true); // re-show so the new motion applies now
+    if (key === "accent") applyAccent();
+    if (key === "lyricsOn") { modes.refresh(); lyrics.update(lastTrack); }
+    if (key === "nightMode" || key === "nightFrom" || key === "nightTo") { applyNight(); syncCollection(); autoMode.evaluate(); }
+    if (key === "autoMode" || key === "autoPhotosAfter") autoMode.evaluate();
   },
   onTab(name) { if (name === "photos") photos.render(); else photos.release(); },
   onConnect: () => openConnect(),
@@ -111,7 +178,7 @@ const settingsUI = createSettings({
 function setConnected(on) {
   $("widget").classList.toggle("disconnected", !on);
   $("widgetConnect").hidden = on;
-  if (!on) artMode.update(null, false);
+  if (!on) { artMode.update(null, false); lyrics.update(null); autoMode.onPlayback(null); }
   if (on && !document.hidden) playback.start();
   if (!on) playback.stop();
 }
@@ -206,6 +273,7 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
     tickClock(); requestWake(); engine.start();
     layout.apply();   // the iPad may have rotated while the app was in the background: re-fit the widget
+    applyNight(); syncCollection(); autoMode.evaluate();   // time has passed: night / time of day may have changed
     if (isConnected()) playback.start();
   } else {
     engine.stop(); playback.stop();
@@ -233,8 +301,13 @@ ls.set("standby.app", "encore");
 $("toNightstand").addEventListener("click", () => ls.set("standby.app", "nightstand"));
 
 /* ---------- start ---------- */
+/* ---------- every minute: night mode and the time-of-day collection ---------- */
+setInterval(() => { if (!document.hidden) { applyNight(); syncCollection(); } }, 60000);
+
 (async function start() {
-  modes.set(settings.mode);
+  applyNight();
+  applyAccent();
+  modes.set(settings.mode, "auto");
   layout.apply();
   tickClock();
   makeTouchIcon();
@@ -245,7 +318,8 @@ $("toNightstand").addEventListener("click", () => ls.set("standby.app", "nightst
   else if (isConnected() && id) { setConnected(true); if (result && result.ok) toast("Spotify connected"); }
   else setConnected(false);
 
-  try { await engine.setCollection(settings.wallCollection); } catch { /* storage unavailable: show the empty state */ }
+  await syncCollection(true);   // the collection for this time of day (or your active one)
   engine.start();
   updateEmpty();
+  autoMode.evaluate();
 })();

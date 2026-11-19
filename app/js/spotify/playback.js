@@ -33,6 +33,8 @@ function normalize(p) {
       kind: isEpisode ? "episode" : "track",
       title: item.name,
       artists: isEpisode ? (item.show?.name || "") : (item.artists || []).map(a => a.name).join(", "),
+      artist: isEpisode ? "" : ((item.artists || [])[0]?.name || ""),   // main artist only (used for lyrics lookup)
+      albumName: isEpisode ? "" : (item.album?.name || ""),
       album: isEpisode ? (item.show?.publisher || "") : (item.album?.name || ""),
       image: sorted[0]?.url || null,
       duration: item.duration_ms || 0,

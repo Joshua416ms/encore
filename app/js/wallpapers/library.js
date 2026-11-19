@@ -95,10 +95,19 @@ export async function removeImage(key) {
   await finished(t);
 }
 
-/** Image keys in the order they were added. */
+/** Keys of the photos in rotation (hidden ones left out), in the order they were added. */
 export async function imageKeys(collectionId) {
   const all = await done((await store("images")).index("byCollection").getAll(IDBKeyRange.only(collectionId)));
-  return all.sort((a, b) => a.added - b.added).map(r => r.key);
+  return all.filter(r => !r.hidden).sort((a, b) => a.added - b.added).map(r => r.key);
+}
+
+/** Hide a photo from rotation, or bring it back. It is never deleted. */
+export async function setHidden(key, hidden) {
+  const db = await open();
+  const t = db.transaction("images", "readwrite");
+  const rec = await done(t.objectStore("images").get(key));
+  if (rec) { rec.hidden = !!hidden; t.objectStore("images").put(rec); }
+  await finished(t);
 }
 /** Full records (Blobs are references; their bytes load only when used). */
 export async function images(collectionId) {

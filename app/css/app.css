@@ -324,7 +324,7 @@ a.btn{text-decoration:none}
 .mono{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:13px}
 .hint{color:var(--fg-3);font-size:13px;line-height:1.5;margin:8px 0 0}
 .hint b{color:var(--fg-2)}
-.row select{background:rgba(0,0,0,.3);color:var(--fg);border:1px solid var(--hair);border-radius:10px;font:500 15px var(--sans);padding:8px 10px}
+.row select,.row input[type=time]{background:rgba(0,0,0,.3);color:var(--fg);border:1px solid var(--hair);border-radius:10px;font:500 15px var(--sans);padding:8px 10px}
 .switch{appearance:none;-webkit-appearance:none;width:51px;height:31px;border-radius:16px;background:var(--fg-4);position:relative;cursor:pointer;flex:none;margin:0;transition:background .2s}
 .switch::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.3);transition:transform .2s}
 .switch:checked{background:#34c759}
@@ -361,3 +361,76 @@ a.btn{text-decoration:none}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{transition-duration:.01ms!important}
 }
+
+/* ======================= Added: lyrics, night mode, pan & zoom, hide photo, accent ======================= */
+
+/* ---------- accent colour fades when the song changes ---------- */
+.bar-fill{transition:background-color 1s var(--ease)}
+.ctl.extra{transition:color 1s var(--ease),transform .15s,opacity .2s}
+
+/* ---------- slow pan & zoom (values per photo from wallpapers/engine.js; never crops — see kenBurns()) ---------- */
+@keyframes kb-fg{
+  from{transform:translate(-50%,-50%)}
+  to{transform:translate(calc(-50% + var(--kx,0px)),calc(-50% + var(--ky,0px))) scale(var(--ks,1))}}
+@keyframes kb-bg{
+  from{transform:scale(1)}
+  to{transform:scale(1.08) translate(var(--kx,0px),var(--ky,0px))}}
+.wp-slide.kb .wp-fg{animation:kb-fg 40s ease-in-out infinite alternate}
+.wp-slide.kb .wp-bg{animation:kb-bg 40s ease-in-out infinite alternate}
+
+/* ---------- hide-photo button (appears with a tap, photos mode only) ---------- */
+.hide-photo{position:fixed;z-index:3;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 50px);
+  display:flex;align-items:center;gap:8px;height:40px;padding:0 16px;border-radius:20px;border:1px solid var(--hair);
+  background:rgba(16,16,20,.5);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);color:var(--fg);
+  font:600 13px var(--sans);cursor:pointer;opacity:0;pointer-events:none;transition:opacity .4s}
+.hide-photo svg{width:18px;height:18px}
+body.ui.has-photos.mode-photos .hide-photo{opacity:1;pointer-events:auto}
+
+/* ---------- lyrics mode ---------- */
+.lyrics-stage{position:fixed;inset:0;z-index:4;opacity:0;visibility:hidden;
+  background:linear-gradient(135deg,var(--fill-l,#15161a),var(--fill-r,#050506));
+  transition:opacity .6s var(--ease),visibility 0s linear .6s}
+.lyrics-stage::before{content:"";position:absolute;inset:0;background:rgba(0,0,0,.5)}
+body.mode-lyrics:not(.lyrics-none) .lyrics-stage{opacity:1;visibility:visible;transition:opacity .6s var(--ease),visibility 0s}
+/* No lyrics (or still loading): show the album-art screen instead — your choice over a "no lyrics" message */
+body.mode-lyrics.lyrics-none .art-stage{opacity:1;visibility:visible;transition:opacity .6s var(--ease),visibility 0s}
+.lyrics-view{position:absolute;inset:0 0 72px;overflow:hidden;
+  padding-left:max(8vw,calc(env(safe-area-inset-left,0px) + 24px));padding-right:max(8vw,calc(env(safe-area-inset-right,0px) + 24px));
+  -webkit-mask-image:linear-gradient(transparent,#000 16%,#000 80%,transparent);mask-image:linear-gradient(transparent,#000 16%,#000 80%,transparent)}
+.lyrics-lines{list-style:none;margin:0;padding:0;transition:transform .7s var(--ease);will-change:transform}
+.lyrics-lines li{font-weight:700;font-size:clamp(24px,3.4vw,46px);line-height:1.22;letter-spacing:-.01em;padding:.26em 0;
+  color:rgba(255,255,255,.3);overflow-wrap:anywhere;transition:color .45s var(--ease)}
+.lyrics-lines li.past{color:rgba(255,255,255,.45)}
+.lyrics-lines li.on{color:#fff}
+.lyrics-lines.plain li{color:rgba(255,255,255,.82);font-size:clamp(19px,2.4vw,30px);font-weight:600}
+.lyrics-foot{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 40px);
+  left:max(8vw,calc(env(safe-area-inset-left,0px) + 24px));right:max(8vw,calc(env(safe-area-inset-right,0px) + 24px));
+  display:flex;align-items:center;gap:14px;font-size:13px;color:var(--fg-3)}
+.lyrics-logo{flex:none}
+.lyrics-logo img{display:block;width:70px;height:auto}
+.lyrics-title{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--fg-2);font-weight:500}
+.lyrics-credit{flex:none;font-size:12px}
+
+/* ---------- night mode (<html class="night">) ----------
+   Red text and controls, darker photos with a red cast, smaller clocks. The album cover itself is never tinted
+   (Spotify's rules) — only its surroundings get darker. */
+/* --accent is !important here because the album-art accent is set inline on <html>; at night red must win. */
+:root.night{--fg:#ff4a3d;--fg-2:rgba(255,74,61,.78);--fg-3:rgba(255,74,61,.55);--fg-4:rgba(255,74,61,.22);--accent:#ff4a3d !important;--hair:rgba(255,74,61,.18)}
+:root.night body{color:var(--fg)}
+:root.night .scrim{background:rgba(40,0,0,.62)}
+:root.night .clock{font-size:calc(22px * var(--clock-scale))}
+:root.night .big-time{font-size:min(18vw,28vh);color:var(--fg)}
+:root.night .big-date{color:var(--fg-3)}
+:root.night .clock-stage{background:rgba(0,0,0,.82)}
+:root.night .widget{background:rgba(8,0,0,max(var(--w-tint),.7))}
+:root.night .ctl.play{background:var(--fg);color:#000}
+:root.night .art-fill{opacity:.25}
+:root.night .stage-art{box-shadow:none}
+:root.night .lyrics-stage::before{background:rgba(0,0,0,.85)}
+:root.night .lyrics-lines li{color:rgba(255,74,61,.28)}
+:root.night .lyrics-lines li.past{color:rgba(255,74,61,.4)}
+:root.night .lyrics-lines li.on,:root.night .lyrics-lines.plain li{color:#ff4a3d}
+:root.night .dots button::before{background:rgba(255,74,61,.35)}
+:root.night .dots button[aria-current="true"]::before{background:#ff4a3d}
+
+@media (prefers-reduced-motion:reduce){ .wp-slide.kb .wp-fg,.wp-slide.kb .wp-bg{animation:none} }

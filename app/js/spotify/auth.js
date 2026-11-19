@@ -150,7 +150,13 @@ export async function getAccessToken(clientId, force = false) {
         const j = await tokenRequest({ grant_type: "refresh_token", refresh_token: t.refresh, client_id: clientId });
         return save(j, t.refresh).access;
       } catch (e) {
-        if (e.code === "invalid_grant" || e.code === "invalid_client") logout(); // revoked or wrong app: sign in again
+        if (e.code === "invalid_grant" || e.code === "invalid_client") {
+          // Spotify replaces the refresh token each time it is used. If another tab of Encore refreshed first,
+          // our copy is now outdated — but storage already holds the new one. Use it instead of signing out.
+          const latest = load();
+          if (latest && latest.refresh !== t.refresh && Date.now() < latest.expires) return latest.access;
+          logout();                                                         // really revoked: sign in again
+        }
         throw e;
       } finally {
         refreshing = null;

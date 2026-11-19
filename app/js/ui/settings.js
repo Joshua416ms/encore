@@ -20,14 +20,21 @@ export const DEFAULTS = {
   wPos: "tr", wX: 1, wY: 0, wHeight: 0, wOpacity: 0.38, wBlur: 24, wPad: 14,
   artOn: true, artSize: 112, artRadius: 8,
   infoOn: true, textScale: 1, albumOn: false,
-  controlsOn: true, extrasOn: true, progressOn: true, accent: "green",
+  controlsOn: true, extrasOn: true, progressOn: true, accent: "art",     // "art" | "green" | "white"
   // Clock
   clockOn: true, dateOn: true, h24: false, clockSize: 1, clockPos: "tl",
-  // Photos
-  wallCollection: null, wallInterval: 10, wallOrder: "random", wallPaused: false, wallFade: 2, wallDim: 0,
+  // Photos (wallInterval: minutes; 0 = only when I tap ‹ ›; -1 = photo of the day)
+  wallCollection: null, wallByPeriod: {}, wallInterval: 10, wallOrder: "random", wallPaused: false, wallFade: 2, wallDim: 0,
   fgSize: 0.92, bgExtend: true, bgBlur: 48, bgDim: 0.35, vignette: 0.5,
+  kbOn: true, kbStrength: 0.05,
   // Album art mode
   artMargin: 9, artBg: "colors",
+  // Automatic screen switching
+  autoMode: true, autoPhotosAfter: 3,
+  // Night mode ("auto" = on a schedule)
+  nightMode: "auto", nightFrom: "22:00", nightTo: "07:00",
+  // Lyrics (LRCLIB, community-sourced) — off until you turn it on
+  lyricsOn: false, lyricsOffset: 0,
 };
 
 const POS = [["tr", "Top right"], ["tl", "Top left"], ["br", "Bottom right"], ["bl", "Bottom left"]];
@@ -37,7 +44,7 @@ const pct = v => `${Math.round(v * 100)}%`;
 export const SCHEMA = {
   photos: [
     { key: "wallInterval", label: "Change photo every", type: "select", num: true,
-      options: [[5, "5 minutes"], [10, "10 minutes"], [15, "15 minutes"], [30, "30 minutes"], [0, "Only when I swipe"]] },
+      options: [[5, "5 minutes"], [10, "10 minutes"], [15, "15 minutes"], [30, "30 minutes"], [-1, "Once a day (photo of the day)"], [0, "Only when I tap ‹ ›"]] },
     { key: "wallOrder", label: "Order", type: "select", options: [["random", "Random"], ["sequential", "In order"]] },
     { key: "wallPaused", label: "Pause rotation", type: "switch" },
     { key: "wallFade", label: "Transition length", type: "range", min: 0.5, max: 6, step: 0.5, fmt: v => `${v} s` },
@@ -48,6 +55,8 @@ export const SCHEMA = {
     { key: "bgDim", label: "Background darkness", type: "range", min: 0, max: 0.8, step: 0.02, fmt: pct },
     { key: "vignette", label: "Vignette (darker edges)", type: "range", min: 0, max: 0.9, step: 0.02, fmt: pct },
     { key: "wallDim", label: "Darken everything (photo too)", type: "range", min: 0, max: 0.6, step: 0.02, fmt: pct },
+    { key: "kbOn", label: "Slow pan and zoom (never crops the photo)", type: "switch" },
+    { key: "kbStrength", label: "Pan and zoom amount", type: "range", min: 0.02, max: 0.1, step: 0.01, fmt: pct },
   ],
   music: [
     { group: "Widget" },
@@ -71,7 +80,11 @@ export const SCHEMA = {
     { key: "controlsOn", label: "Playback controls", type: "switch" },
     { key: "extrasOn", label: "Shuffle and repeat buttons", type: "switch" },
     { key: "progressOn", label: "Progress bar", type: "switch" },
-    { key: "accent", label: "Accent color", type: "select", options: [["green", "Spotify green"], ["white", "White"]] },
+    { key: "accent", label: "Accent color", type: "select", options: [["art", "From the album art"], ["green", "Spotify green"], ["white", "White"]] },
+    { group: "Lyrics" },
+    { key: "lyricsOn", label: "Lyrics screen (swipe to it)", type: "switch" },
+    { key: "lyricsOffset", label: "Lyrics timing", type: "range", min: -1, max: 1, step: 0.1, fmt: v => (v > 0 ? `+${v.toFixed(1)} s` : `${v.toFixed(1)} s`) },
+    { note: "Lyrics come from LRCLIB, a free community-run database. They are not licensed by the music publishers and may be missing or wrong. Only the song's title, artist, album and length are sent to LRCLIB. Songs without lyrics show their album cover." },
   ],
   display: [
     { group: "Clock" },
@@ -80,6 +93,15 @@ export const SCHEMA = {
     { key: "h24", label: "24-hour time", type: "switch" },
     { key: "clockSize", label: "Clock size", type: "range", min: 0.6, max: 3, step: 0.1, fmt: pct },
     { key: "clockPos", label: "Clock position", type: "select", options: POS },
+    { group: "Automatic screen switching" },
+    { key: "autoMode", label: "Switch screens automatically", type: "switch" },
+    { key: "autoPhotosAfter", label: "Back to photos after music stops", type: "range", min: 1, max: 15, step: 1, fmt: v => `${v} min` },
+    { note: "Music playing → album art. Stopped for a while → photos. Night with nothing playing → clock. If you choose a screen yourself, automatic switching pauses for 30 minutes." },
+    { group: "Night mode" },
+    { key: "nightMode", label: "Night mode", type: "select", options: [["auto", "On a schedule"], ["on", "Always on"], ["off", "Off"]] },
+    { key: "nightFrom", label: "Night starts", type: "time" },
+    { key: "nightTo", label: "Night ends", type: "time" },
+    { note: "At night: red text and clock, darker photos, smaller clock. The album cover itself is never tinted (Spotify's rules). Encore can't change the iPad's real brightness; see the tip below." },
     { group: "Album art mode" },
     { key: "artMargin", label: "Space around the cover", type: "range", min: 2, max: 18, step: 1, fmt: v => `${v}% of the short side` },
     { key: "artBg", label: "Background", type: "select", options: [["colors", "Colours from the cover"], ["black", "Black"]] },
@@ -100,6 +122,13 @@ function renderRows(container, list, settings, onChange) {
       container.append(parent);
       continue;
     }
+    if (item.note) {                                  // an explanation line, not a setting
+      const p = document.createElement("p");
+      p.className = "hint";
+      p.textContent = item.note;
+      parent.append(p);
+      continue;
+    }
     const id = "set-" + item.key;
     const row = document.createElement("div");
     row.className = "row" + (item.type === "range" ? " range" : "");
@@ -109,7 +138,12 @@ function renderRows(container, list, settings, onChange) {
     label.textContent = item.label;
     row.append(label);
     let input;
-    if (item.type === "switch") {
+    if (item.type === "time") {
+      input = document.createElement("input");
+      input.type = "time";
+      input.value = settings[item.key];
+      input.addEventListener("change", () => { if (/^\d{2}:\d{2}$/.test(input.value)) onChange(item.key, input.value); });
+    } else if (item.type === "switch") {
       input = document.createElement("input");
       input.type = "checkbox";
       input.className = "switch";

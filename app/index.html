@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <!-- Content Security Policy: the browser refuses anything not on this list (see docs/SECURITY.md). -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://i.scdn.co https://*.scdn.co https://*.spotifycdn.com data: blob:; connect-src https://accounts.spotify.com https://api.spotify.com; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://i.scdn.co https://*.scdn.co https://*.spotifycdn.com data: blob:; connect-src https://accounts.spotify.com https://api.spotify.com https://lrclib.net; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <title>Encore</title>
 <script src="js/route.js"></script>
@@ -48,6 +48,18 @@
   </a>
 </div>
 
+<!-- ===== Lyrics mode (ui/lyricsmode.js). Only when lyrics are on. With no lyrics, the album-art screen shows instead. ===== -->
+<div class="lyrics-stage" id="lyricsStage" aria-label="Lyrics">
+  <div class="lyrics-view" id="lyricsView"><ol class="lyrics-lines" id="lyricsLines"></ol></div>
+  <div class="lyrics-foot">
+    <a class="lyrics-logo" id="lyricsLogo" href="https://open.spotify.com/" target="_blank" rel="noopener noreferrer" aria-label="Open in Spotify">
+      <img src="assets/spotify/Full_Logo_White_RGB.svg" alt="Spotify" width="70" height="19" draggable="false">
+    </a>
+    <span class="lyrics-title" id="lyricsTitle"></span>
+    <span class="lyrics-credit">Lyrics: LRCLIB (community)</span>
+  </div>
+</div>
+
 <!-- ===== Mode 3: clock display ===== -->
 <div class="clock-stage" id="clockStage" aria-label="Clock">
   <div class="big-time" id="bigTime">10:42</div>
@@ -58,6 +70,7 @@
 <nav class="dots" id="dots" aria-label="Display mode">
   <button type="button" data-mode="photos" aria-label="Photos and music"></button>
   <button type="button" data-mode="artwork" aria-label="Album artwork"></button>
+  <button type="button" data-mode="lyrics" aria-label="Lyrics" hidden></button>
   <button type="button" data-mode="clock" aria-label="Clock"></button>
 </nav>
 
@@ -161,6 +174,11 @@
 <button class="nav next" id="wpNext" type="button" aria-label="Next photo">
   <svg viewBox="0 0 24 24" class="stroke"><path d="M9 5l7 7-7 7"/></svg>
 </button>
+<!-- Hide the current photo from rotation (not deleted; bring it back in Settings › Photos) -->
+<button class="hide-photo" id="hidePhoto" type="button">
+  <svg viewBox="0 0 24 24" class="stroke"><path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.1A9.8 9.8 0 0 1 12 5c5 0 9 4.5 10 7a13 13 0 0 1-3.2 4.2M6.6 6.6A13.4 13.4 0 0 0 2 12c1 2.5 5 7 10 7 1.6 0 3.1-.4 4.4-1.1"/></svg>
+  <span>Hide photo</span>
+</button>
 
 <button class="gear" id="gearBtn" type="button" aria-label="Settings">
   <svg viewBox="0 0 24 24" class="stroke"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/></svg>
@@ -226,6 +244,16 @@
       <input type="file" id="addFiles" accept="image/*" multiple hidden>
       <div class="thumbs" id="thumbs"></div>
     </div>
+    <div class="group" id="periodGroup">
+      <h3>Collections by time of day</h3>
+      <div id="periodRows"></div>
+      <p class="hint">Times without a collection show your active collection. Night follows the night-mode schedule (Display tab).</p>
+    </div>
+    <div class="group" id="hiddenGroup" hidden>
+      <h3>Hidden photos</h3>
+      <p class="hint">Tap a photo to bring it back into rotation.</p>
+      <div class="thumbs" id="hiddenThumbs"></div>
+    </div>
     <div class="group"><h3>Rotation</h3><div id="rowsPhotos"></div></div>
     <p class="hint" id="storageNote"></p>
   </section>
@@ -243,6 +271,7 @@
       <div class="row"><span>Full screen</span><button class="btn ghost tiny" type="button" id="fullscreenBtn">Enter full screen</button></div>
       <div class="row"><span>Keep screen on</span><span class="value" id="wakeState">Checking…</span></div>
       <p class="hint">If the iPad still dims, set Auto-Lock to Never in Settings › Display &amp; Brightness.</p>
+      <p class="hint"><b>Dim the real screen at night</b> (Encore can't change iPad brightness itself): open the <b>Shortcuts</b> app › <b>Automation</b> › <b>+</b> › <b>Time of Day</b> › 22:00 › <b>Run Immediately</b> › add <b>Set Brightness</b> (e.g. 10%). Make a second automation at 07:00 that sets it back (e.g. 60%).</p>
     </div>
     <div class="group">
       <h3>Apps</h3>
