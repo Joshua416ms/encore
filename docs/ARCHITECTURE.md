@@ -1,6 +1,6 @@
 # Architecture
 
-_Last updated: 2026-11-18. Describes only what is implemented._
+_Last updated: 2026-11-19. Describes only what is implemented._
 
 ## The big picture
 
@@ -13,7 +13,11 @@ The screen is a **photo frame first**. Three display modes are reached by swipin
 |---|---|
 | `photos` | Your imported Cosmos photos, full screen and rotating, with the Spotify widget and clock in corners |
 | `artwork` | The current Spotify cover, whole and as large as the screen allows (never cropped), plus the Spotify logo |
+| `lyrics` | Lyrics of the current song (only when turned on **and** the song has lyrics) |
 | `clock` | Large time and date over the darkened current photo |
+
+Vertical swipes: **down** opens the **Spotify screen** (`ui/library.js`, a panel over every mode); **up** closes it,
+or, when it's closed, goes to the separate Nightstand app (which comes back with a swipe down).
 
 ```
 ┌──────────────────────────────────── iPad / browser ────────────────────────────────────┐
@@ -40,11 +44,12 @@ The screen is a **photo frame first**. Three display modes are reached by swipin
 | Module | Owns | Talks to |
 |---|---|---|
 | `main.js` | Startup, wiring, clock text, wake lock, connect pop-up | Everything (only place that knows all modules) |
-| `ui/modes.js` | Current mode, dots, swipe gesture | `settings` (saves `mode`) |
+| `ui/modes.js` | Current mode, dots, horizontal swipes; reports vertical swipes (`onVertical`) | `settings` (saves `mode`) |
+| `ui/library.js` | Spotify screen: now playing with large controls and volume; Up next, playlists, saved albums, recently played; song lists | `client`, `playback` |
 | `ui/layout.js` | Widget size (CSS variables), free position of the dock (fractions `wX`/`wY`), press-and-hold dragging, +/− size, clock placement, readability tint | `settings` |
 | `ui/nowplaying.js` | Widget contents and Spotify buttons | `playback` |
 | `ui/automode.js` | Automatic screen switching (music → album art, stopped → photos, night → clock; your choice wins for 30 min) | `modes` (via `main`) |
-| `ui/lyricsmode.js` | Lyrics screen: renders lines, highlights the current one; shows the cover when there are none | `lyrics/lrclib.js`, `playback` |
+| `ui/lyricsmode.js` | Lyrics screen: renders lines, highlights the current one; reports whether the song has lyrics (`has`) | `lyrics/lrclib.js`, `playback` |
 | `lyrics/lrclib.js` | Looks up lyrics on LRCLIB, parses timestamps, caches results on the device | LRCLIB |
 | `ui/artmode.js` | Full-screen cover + edge-colour fill | receives tracks from `nowplaying` via `main` |
 | `ui/settings.js` | Settings sheet; options built from `SCHEMA`; `DEFAULTS` | `onChange` callback |
@@ -66,7 +71,11 @@ The screen is a **photo frame first**. Three display modes are reached by swipin
 | No framework, no build step, no third-party code | Everything is readable; nothing external to trust | More manual DOM code |
 | Photos imported from Files | Cosmos has no official API; undocumented endpoints are excluded on purpose | You download from Cosmos, then import |
 | Settings → CSS custom properties | Each size is its own variable, so they change independently | Limits (clamps) live in `layout.js` |
-| One `wScale` multiplier for +/− | Whole-widget resizing keeps proportions | Separate from the individual sliders by design |
+| One `wScale` multiplier for +/− | Whole-widget resizing keeps proportions | — |
+| Widget width, padding, blur and corners are fixed (`FIXED` in `settings.js`), not settings | Fewer knobs; − / + already resizes; corners are capped at 8 px by Spotify anyway | Old saved values are deleted on load, so a customised widget returns to the default look |
+| Lyrics screen only exists while the song has lyrics | No empty screen; returns to Lyrics automatically after a song without | One automatic move you didn't make (undone by any swipe of your own) |
+| Vertical swipes for the Spotify screen and Nightstand, no buttons | Quick to reach from every screen; no clutter | Not discoverable in the app (documented in README); must start away from the screen edges |
+| Spotify screen is read-only (no search, no "+ Queue") | Fewer scopes, smaller first version | Followed playlists can only be played, not browsed (Spotify returns 403) |
 | Photos shown whole (`contain`) over a blurred copy | Nothing is ever cropped or stretched; the screen still feels full | Two layers per photo; the blurred one uses the 360 px thumbnail to keep memory and GPU work low |
 | Free the old photo only after the new one has fully faded in | Browsers pause animations in hidden tabs/backgrounded apps; a fixed timer caused a blank frame in testing | If the fade can't be confirmed, the old photo is kept a little longer (memory, never a blank) |
 | No early pre-decoding of the next photo | Decoding right before the fade already hides loading | Would cost a third full-size photo in memory |

@@ -50,9 +50,18 @@ If two requests need a refresh at once, they share one refresh call. If Spotify 
 | Scope | Why Encore needs it |
 |---|---|
 | `user-read-playback-state` | Read what's playing and list your devices |
-| `user-modify-playback-state` | Play, pause, skip, seek, shuffle, repeat, switch devices |
+| `user-modify-playback-state` | Play, pause, skip, seek, shuffle, repeat, volume, switch devices, start a playlist/album/song |
+| `playlist-read-private` | Spotify screen: list your private playlists |
+| `playlist-read-collaborative` | Spotify screen: list collaborative playlists and their songs |
+| `user-library-read` | Spotify screen: saved albums |
+| `user-read-recently-played` | Spotify screen: recently played |
+| `user-read-currently-playing` | Spotify screen: Up next (the queue) |
 
-Not requested: playlists, library, email, listening history, or anything else.
+All library scopes are **read-only**: Encore can't create, change or delete playlists or saved items.
+Not requested: email, following, saving/removing, uploading, or anything else.
+
+**Signed in before 2026-11-19?** That sign-in only has the first two scopes. Now playing still works; the Spotify screen
+shows "Reconnect Spotify" until you connect once more (`missingScopes()` in `auth.js` compares the stored scopes).
 
 ## Public configuration vs. secrets
 

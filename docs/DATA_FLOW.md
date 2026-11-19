@@ -17,11 +17,21 @@ _Last updated: 2026-11-18._
 ## 2. Swiping between display modes
 
 ```
-finger down ─▶ modes.js: started on a button / link / progress bar / settings / dots / size buttons? → ignore
+finger down ─▶ modes.js: started on a button / link / progress bar / settings / dots / size buttons? → no sideways swipe
 finger up   ─▶ moved > 60 px sideways, more sideways than vertical, within 0.7 s, and the widget isn't being moved?
-               yes → step(+1 or −1) → body class mode-photos|artwork|clock → CSS crossfades layers → dots update
+               yes → step(+1 or −1) → body class mode-photos|artwork|lyrics|clock → CSS crossfades layers → dots update
                      → settings.mode saved → main.js ignores the "click" that ends the swipe (justSwiped)
 ```
+
+**Vertical swipes** (same 60 px / 0.7 s rule; must start more than 56 px from the top and bottom edges, which belong to
+iPadOS; may start on a button, whose click is then cancelled):
+
+```
+swipe DOWN ─▶ Spotify screen open? nothing : connected? library.open() : Connect pop-up
+swipe UP   ─▶ Spotify screen open? library.close() : standby.app = "nightstand" → go to nightstand/
+Nightstand: swipe DOWN (touch events, because its pager scrolls natively) ─▶ standby.app = "encore" → go to ../
+```
+Inside the Spotify screen the library column scrolls, so swipe up on the now-playing side, the header or the handle.
 Moving the widget needs a **press-and-hold (0.4 s)** first, so a quick flick across the widget is a swipe, not a drag.
 
 ## 2b. Dragging the widget (`ui/layout.js`)
@@ -50,9 +60,13 @@ you swipe/tap a dot ─▶ modes.set(…, "user") ─▶ automode waits 30 min (
 ## 2d. Lyrics (`lyrics/lrclib.js`, `ui/lyricsmode.js`) — only when turned on
 
 ```
-song changes ─▶ lyrics.update(track): show the cover meanwhile (body.lyrics-none → album-art screen)
+song changes ─▶ lyrics.update(track): keep showing the old lyrics (frozen) while looking up the new ones
   → cache hit? use it : GET lrclib.net/api/get (title, main artist, album, length)
-  → synced → lines with times · plain → text · 404/instrumental → none (cover stays)
+  → synced → lines with times · plain → text · 404/instrumental → none
+  → lyrics.has changed? → main.js lyricsAvailability(has):
+       none, and you were on Lyrics → Album art, remember returnToLyrics (the Lyrics dot disappears)
+       has lyrics, returnToLyrics, still on Album art → back to Lyrics
+       any swipe/dot of your own, or leaving Album art → forget returnToLyrics
 every 200 ms in Lyrics mode ─▶ position = playback.position() + offset → binary search → highlight + centre line
 ```
 

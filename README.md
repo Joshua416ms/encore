@@ -1,12 +1,19 @@
 # Encore
 
-A full-screen iPad photo frame with a Spotify music widget. Swipe between three display modes:
+A full-screen iPad photo frame with a Spotify music widget. Swipe **left and right** between the display modes:
 
 1. **Photos**: your own photo collections (for example images saved from Cosmos) rotate full screen, with a resizable Spotify widget and clock in the corners.
 2. **Album artwork**: the current Spotify cover, as large as the screen allows.
-3. **Clock**: large time and date.
+3. **Lyrics** (optional): only while the current song has lyrics.
+4. **Clock**: large time and date.
 
-A separate **Nightstand** app (clock, weather, calendar, photo frame, red night mode) is one tap away in Settings.
+Swipe **down** for the **Spotify screen**: big playback controls, volume, Up next, your playlists, saved albums and
+recently played. Swipe **up** to close it.
+
+Swipe **up** (from any screen) for the separate **Nightstand** app (clock, weather, calendar, photo frame, red night mode);
+swipe **down** there to come back. Start vertical swipes a little away from the top and bottom edges, which belong to iPadOS.
+
+For the real full-screen look, open Encore from its **Home Screen icon** (Safari > Share > Add to Home Screen).
 
 It's a web app you add to the iPad Home Screen. There's no server, no build step and no third-party JavaScript.
 
@@ -21,6 +28,7 @@ It's a web app you add to the iPad Home Screen. There's no server, no build step
 | Photo collections (import from Files), rotation, three display modes | Built and tested in the browser |
 | Nightstand (clock, weather, calendar, photos, night mode) | Built and working |
 | Lyrics (optional, off by default) | Built and tested; community-sourced via LRCLIB |
+| Spotify screen (swipe down), vertical swipes | Built and tested in the browser with sample data; not yet with a real account |
 | Automatic screen switching, night mode, accent colours, photo extras | Built and tested in the browser |
 | Direct Cosmos account connection | Not possible: Cosmos has no public API. Photos are imported from Files instead |
 
@@ -36,7 +44,7 @@ It's a web app you add to the iPad Home Screen. There's no server, no build step
 python tools/serve.py
 ```
 
-Then open http://127.0.0.1:5173/.
+Then open http://127.0.0.1:5173/. If that port is busy, set `PORT` first (PowerShell: `$env:PORT=5175`).
 
 ## Connect Spotify
 

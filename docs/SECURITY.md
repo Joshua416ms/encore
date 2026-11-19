@@ -16,7 +16,7 @@ _Last updated: 2026-11-18. To report a vulnerability, see [/SECURITY.md](../SECU
 | **Token theft via XSS** (Cryptographic failures / Auth failures) | Yes. Tokens live in `localStorage`, which any script on the page can read | Defended by the XSS protections above. Tokens only grant playback control |
 | **CSRF on sign-in** (Broken access control) | Yes | Random `state` value checked on return |
 | **Authorization code interception** | Yes | PKCE: the code is useless without the verifier |
-| **Excess permissions** (Broken access control) | Yes | Only 2 scopes (see AUTHENTICATION.md) |
+| **Excess permissions** (Broken access control) | Yes | 7 scopes: 2 for playback, 5 read-only for the Spotify screen; none can change your library (see AUTHENTICATION.md) |
 | **Unsafe links from API data** | Yes. "Open Spotify" uses an API-provided URL | `safeSpotifyUrl()` only accepts `https://open.spotify.com/…` |
 | **Vulnerable dependencies** | Minimal | No JavaScript libraries and (since the typography update) no external stylesheets or fonts. Encore loads only its own files plus Spotify images/API |
 | **Untrusted image files** (photo import) | Yes. You import files from Files | Images are decoded by the browser's own image decoder (sandboxed) and only ever displayed as images: never parsed as HTML or run. File names are shown with `textContent`. Imports stay on the device |
@@ -71,7 +71,7 @@ That is intended: the page never needs to fetch anything else.
 | 1 | Project in a permanent folder with Git | Done |
 | 2 | Commit email set to the GitHub noreply address | Done, verified in history |
 | 3 | Spotify design rules (logo, link back, no blurred art, 8px corners, full text viewable) | Done |
-| 4 | Least-privilege scopes (2) | Done |
+| 4 | Least-privilege scopes (7; library ones read-only) | Done |
 | 5 | CSP on both pages | Done, verified |
 | 6 | Sign-in code always removed from the address bar | Done, verified |
 | 7 | API URLs checked before use as links | Done |

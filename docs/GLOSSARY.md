@@ -52,7 +52,7 @@ Each term includes where it appears in this project.
 
 **innerHTML vs. textContent**: `innerHTML` treats text as HTML (it can create elements and scripts); `textContent` treats it as plain text. _We use `textContent` for anything from an API._
 
-**Least privilege**: Ask for and grant only the access you actually need. _Two Spotify scopes._
+**Least privilege**: Ask for and grant only the access you actually need. _Encore's scopes: playback control plus read-only library access, nothing that can change your library._
 
 **localStorage**: Simple key → text storage in the browser, separate for each site. _Settings and tokens._
 

@@ -18,7 +18,8 @@ _Last updated: 2026-11-18._
 │   │   ├── spotify/playback.js   Playback state, polling, playback commands
 │   │   ├── ui/nowplaying.js      Fills the widget from playback state; Spotify buttons
 │   │   ├── ui/layout.js          Widget size/position, corners, drag, +/− size, clock placement
-│   │   ├── ui/modes.js           Display modes (photos, artwork, lyrics, clock), dots, swipe gesture
+│   │   ├── ui/modes.js           Display modes (photos, artwork, lyrics, clock), dots, swipe gestures
+│   │   ├── ui/library.js         Spotify screen (swipe down): controls, volume, queue, playlists, albums, history
 │   │   ├── ui/automode.js        Automatic screen switching
 │   │   ├── ui/lyricsmode.js      Lyrics screen
 │   │   ├── lyrics/lrclib.js      LRCLIB lookup, timestamp parser, on-device cache

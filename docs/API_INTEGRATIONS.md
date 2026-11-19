@@ -1,6 +1,6 @@
 # API integrations
 
-_Last updated: 2026-11-18._
+_Last updated: 2026-11-19._
 
 An **API** (Application Programming Interface) is a set of addresses a service publishes so programs can ask it for data or actions.
 Each request is an **HTTP request**: a *method* (GET = read, PUT/POST = change), an *address* (URL), *headers* (extra info like the token)
@@ -20,6 +20,19 @@ Base address: `https://api.spotify.com/v1`. Every request carries `Authorization
 | Seek | `PUT /me/player/seek?position_ms=` | `user-modify-playback-state` | **Yes** |
 | Shuffle / repeat | `PUT /me/player/shuffle?state=`, `/repeat?state=` | `user-modify-playback-state` | **Yes** |
 | Switch device | `PUT /me/player` | `user-modify-playback-state` | **Yes** |
+| Volume (Spotify screen) | `PUT /me/player/volume?volume_percent=` | `user-modify-playback-state` | **Yes** |
+| Play a playlist/album, optionally from one song | `PUT /me/player/play` with `context_uri` (+ `offset.uri`) | `user-modify-playback-state` | **Yes** |
+| Play one song (Recently played) | `PUT /me/player/play` with `uris` | `user-modify-playback-state` | **Yes** |
+| Up next | `GET /me/player/queue` | `user-read-currently-playing`, `user-read-playback-state` | No |
+| Your playlists | `GET /me/playlists` (50 per page, up to 4 pages) | `playlist-read-private`, `playlist-read-collaborative` | No |
+| A playlist's songs | `GET /playlists/{id}/items`: **only playlists you own or collaborate on** (others: 403) | same | No |
+| Saved albums | `GET /me/albums` | `user-library-read` | No |
+| An album's songs | `GET /albums/{id}/tracks` | none beyond sign-in | No |
+| Recently played | `GET /me/player/recently-played?limit=30` | `user-read-recently-played` | No |
+
+The Spotify screen only **reads** your library. There is no search and no "add to queue" (decided 2026-11-19; maybe later).
+Followed and Spotify-made playlists show cover, name and **Play** only, because Spotify refuses to list their songs
+to apps in Development Mode. Playlist items may come back as `item` (new) or `track` (old); `library.js` accepts both.
 
 **Error handling** (`client.js`): 401 → refresh the token once and retry. 429 → wait for `Retry-After` (10 s if the header can't be read).
 403/404 → turned into a readable message (Premium required, no active device, restricted device).

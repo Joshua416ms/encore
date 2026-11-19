@@ -79,3 +79,19 @@
   wrongly treated as broken); decode() never settling in a hidden page (fallback after 2.5 s);
   **refresh-token race between two tabs** signed the user out (now uses the newer token).
 - Not tested yet on the iPad itself; lyrics with real playback (nothing was playing during tests).
+
+**Settings trimmed, lyrics rule, vertical swipes, Spotify screen** (decided in a grilling session, then built)
+- Music tab: removed Width, Minimum height, Padding, Background blur and Corner radius (decided after a visual
+  low/default/high comparison). Fixed values in `FIXED`; old saved values deleted on load.
+- Display tab: removed the Full screen button and the wake-lock status line; added a **Keep screen on** switch (default on).
+- Lyrics screen exists only while the song has lyrics; automatic move to Album art and back (`returnToLyrics`).
+- Swipe down → Spotify screen; swipe up → Nightstand (down to return). Removed both apps' Switch buttons.
+- Spotify screen: now playing (large controls, volume), Up next, playlists, saved albums, recently played; song lists
+  with a big Play; followed playlists show Play only. Five new read-only scopes; older sign-ins see "Reconnect Spotify".
+- `tools/serve.py` accepts `PORT` (5173 was taken by another session's server).
+- Tested in the browser: old widget values removed; Music/Display tab contents; swipes (edge zone ignored, down →
+  Connect when signed out, up → Nightstand, Nightstand down → Encore, sideways unchanged); 6 lyrics-switching cases;
+  Spotify screen with **sample data** (sections, dedupe, Show all, followed vs own vs collaborative playlist, local file
+  disabled, play-from-song / Play / recently played requests, landscape and portrait layout, reconnect notice); no console errors.
+- Not tested yet: a real Spotify account (new endpoints, `/playlists/{id}/items` response shape, volume), the iPad itself
+  (real swipes near the screen edges, wake-lock switch).
