@@ -2,11 +2,9 @@
 
 _Written 2026-11-19 so a new chat can continue exactly where the last one stopped. Read this, then docs/ARCHITECTURE.md._
 
-## Built 2026-11-19, NOT committed yet
-- Gear `z-index: 7` (Settings reachable from every screen).
-- Decisions 1–9 below are all **built** and tested in the browser (sample data for the Spotify screen). See DEVELOPMENT_LOG.md.
-- Still to verify with the user: a real Spotify account (reconnect once for the new scopes; check playlists, song lists,
-  volume, Up next) and real swipes on the iPad.
+## State (2026-11-19, evening)
+- Decisions 1–9 below are built, committed (420216a) and confirmed on the iPad with a real Spotify account.
+- Sleep timer (Q1–Q8 below) is built and tested in the browser; **not committed yet**; still to try on the iPad.
 
 ## Decisions made (grilling session, 2026-11-19) — all built
 1. **Lyrics screen only when the song has lyrics.** No lyrics → the Lyrics screen and its dot disappear.
@@ -46,9 +44,21 @@ _Written 2026-11-19 so a new chat can continue exactly where the last one stoppe
 - `GET /albums/{id}/tracks` (bulk `GET /albums?ids=` removed). Search: max 10 results.
 - Design rules for the library view: full Spotify logo (≥70 px) + link back; artwork unaltered, ≤8 px corners.
 
-## Still open — continue the grilling here (ask ONE question at a time)
-- Settings **content** is fully decided (Q12–Q15, decisions 6–9). Nothing from decisions 1–9 is built yet.
-- Next (after the user has tried the build): the **visual design** of the settings.
+## Sleep timer decisions (grilling session, 2026-11-19) — built
+- Q1 Moon button in the Spotify screen's top bar only. Q2 Off / 15 / 30 / 45 / 60 min.
+- Q3 Last 30 s: volume fades to 0, pause, old volume back. No volume control on the device → just pause.
+- Q4 Then black screen; Encore lets go of the screen; the iPad locks after Auto-Lock. Tap = back, music stays paused.
+- Q5 Timer keeps running in Nightstand and ends there too. Q6 Nightstand follows Encore's "Keep screen on" switch.
+- Q7/Q8 Timer works whatever the switch says; while it runs the screen stays on (a locked iPad freezes the page).
+
+## Backlog (user's choices, 2026-11-19)
+- **Next big one — photo files and moods** (grill first): save/load each collection as a file in Files (also the
+  backup); built-in mood presets such as "Cosmic" or "Dark" (NASA images are free to use; Cosmos images are not).
+  Multiple collections + time-of-day collections already exist (`ui/photos.js`).
+- **Alarm:** a web app can't wake a locked iPad. Plan: a short guide for an iPad Shortcuts "Time of Day" automation
+  that plays a Spotify playlist and opens Encore. Test on the iPad.
+- Later, one at a time: Settings visual design. Maybe later: "+ Queue", search.
+- Rejected: login (photos already stay on the device), Like ♥, favourite photos. Skipped: song line in Nightstand.
 
 ## How we work
 - The user is learning: explain what changes and why; follow the mentor rules (see LEARNING_LOG.md).

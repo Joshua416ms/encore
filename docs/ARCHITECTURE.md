@@ -57,6 +57,8 @@ or, when it's closed, goes to the separate Nightstand app (which comes back with
 | `wallpapers/library.js` | IndexedDB storage of collections and images | — |
 | `wallpapers/importer.js` | File → hash, screen-sized copy, thumbnail, focal point, corner brightness | `library` |
 | `wallpapers/engine.js` | Rotation (random bag / sequential), prev/next, crossfade, memory release | `library` |
+| `sleep.js` | Sleep timer: end time in localStorage, fade, pause, volume restore; shared by Encore and Nightstand | Spotify (`client.js`) |
+| `ui/sleepbutton.js` | Moon button and its menu in the Spotify screen | `sleep.js` |
 | `spotify/*` | Sign-in, API calls, playback sync (unchanged by the redesign) | Spotify |
 
 **Rule:** modules don't import each other's UI. `main.js` connects them with small callbacks
@@ -86,5 +88,8 @@ or, when it's closed, goes to the separate Nightstand app (which comes back with
 | Night mode never tints the album cover | Spotify forbids altering cover art | Only the surroundings, text and photos turn red/dark |
 | A web app can't change iPad brightness | Browser limitation | Instructions for an iPad Shortcuts automation instead |
 | Pan & zoom only into the empty space around a photo | Keeps the "never crop" rule while adding motion and burn-in protection | Smaller motion when the photo already fills the screen |
+| Sleep timer's end time lives in localStorage | Encore and Nightstand are separate pages; a JavaScript timer would die when you swipe between them | Both pages check the clock every second while a timer runs |
+| Screen stays on while a sleep timer runs, even with "Keep screen on" off | A locked iPad freezes the page, so the timer couldn't stop the music | The screen is on until the timer ends, then the iPad locks after its Auto-Lock time |
+| Nightstand follows Encore's "Keep screen on" switch | One setting for both apps | Nightstand has no switch of its own |
 | Polling Spotify | The Web API has no push updates | Up to ~3 s delay for changes made elsewhere |
 | System font only | Consistent typography; removed the Google Fonts request | — |

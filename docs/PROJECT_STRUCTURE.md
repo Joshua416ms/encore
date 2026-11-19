@@ -1,6 +1,6 @@
 # Project structure
 
-_Last updated: 2026-11-18._
+_Last updated: 2026-11-19._
 
 ```
 .
@@ -13,6 +13,7 @@ _Last updated: 2026-11-18._
 │   │   ├── route.js              Reopens the last-used app (Encore or Nightstand)
 │   │   ├── main.js               Entry point: creates modules and connects them
 │   │   ├── config.js             Optional public Client ID (empty by default)
+│   │   ├── sleep.js              Sleep timer (fade, pause, volume back); also loaded by Nightstand
 │   │   ├── spotify/auth.js       OAuth + PKCE sign-in, token storage and refresh
 │   │   ├── spotify/client.js     Spotify Web API requests and error handling
 │   │   ├── spotify/playback.js   Playback state, polling, playback commands
@@ -20,6 +21,7 @@ _Last updated: 2026-11-18._
 │   │   ├── ui/layout.js          Widget size/position, corners, drag, +/− size, clock placement
 │   │   ├── ui/modes.js           Display modes (photos, artwork, lyrics, clock), dots, swipe gestures
 │   │   ├── ui/library.js         Spotify screen (swipe down): controls, volume, queue, playlists, albums, history
+│   │   ├── ui/sleepbutton.js     Moon button + menu for the sleep timer
 │   │   ├── ui/automode.js        Automatic screen switching
 │   │   ├── ui/lyricsmode.js      Lyrics screen
 │   │   ├── lyrics/lrclib.js      LRCLIB lookup, timestamp parser, on-device cache

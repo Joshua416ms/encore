@@ -95,3 +95,16 @@
   disabled, play-from-song / Play / recently played requests, landscape and portrait layout, reconnect notice); no console errors.
 - Not tested yet: a real Spotify account (new endpoints, `/playlists/{id}/items` response shape, volume), the iPad itself
   (real swipes near the screen edges, wake-lock switch).
+
+**Sleep timer** (decided in a grilling session, Q1–Q8, then built)
+- Moon button in the Spotify screen's top bar: Off, 15, 30, 45, 60 minutes; shows "28 min" while running.
+- 30 s before the end the Spotify volume fades to 0 (only when the device allows volume), then pause, then the old
+  volume is put back. Then a black sleep screen; Encore stops polling and lets go of the screen; tap to come back.
+- The end time is stored in localStorage (`encore.sleepAt`), so the timer keeps running in Nightstand. Nightstand
+  loads the same code (`js/sleep.js`) with `import()`; its CSP now allows Spotify.
+- Nightstand now follows Encore's **Keep screen on** switch (it used to stay awake always).
+- While a timer runs, the screen stays on even if the switch is off (Q8): a locked iPad freezes the page, so the
+  timer could never stop the music.
+- Tested in the browser: menu and label; end → black screen → tap back; the fade against a **fake Spotify**
+  (60 → 45 → 30 → 15 → 0, pause, volume back to 60); Nightstand status texts and its sleep screen; no new console errors.
+- Not testable here: the wake lock (this test browser refuses it), real Spotify, the iPad locking afterwards.

@@ -10,6 +10,9 @@ A full-screen iPad photo frame with a Spotify music widget. Swipe **left and rig
 Swipe **down** for the **Spotify screen**: big playback controls, volume, Up next, your playlists, saved albums and
 recently played. Swipe **up** to close it.
 
+In the Spotify screen, the **moon** button starts a **sleep timer** (15–60 minutes): the music fades out and pauses,
+the screen goes black, and the iPad locks by itself. Tap the black screen to come back.
+
 Swipe **up** (from any screen) for the separate **Nightstand** app (clock, weather, calendar, photo frame, red night mode);
 swipe **down** there to come back. Start vertical swipes a little away from the top and bottom edges, which belong to iPadOS.
 
@@ -30,6 +33,7 @@ It's a web app you add to the iPad Home Screen. There's no server, no build step
 | Lyrics (optional, off by default) | Built and tested; community-sourced via LRCLIB |
 | Spotify screen (swipe down), vertical swipes | Built and tested in the browser with sample data; not yet with a real account |
 | Automatic screen switching, night mode, accent colours, photo extras | Built and tested in the browser |
+| Sleep timer (moon button); Nightstand follows "Keep screen on" | Built and tested in the browser with a simulated Spotify; not yet on the iPad |
 | Direct Cosmos account connection | Not possible: Cosmos has no public API. Photos are imported from Files instead |
 
 ## Requirements

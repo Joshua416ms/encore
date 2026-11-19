@@ -44,7 +44,8 @@ Encore's policy (`app/index.html`):
 | `style-src 'self'` | Only our own CSS file | No injected stylesheets (Google Fonts removed 2026-11-18) |
 | `object-src 'none'`, `base-uri 'none'`, `form-action 'none'` | Nothing | Blocks plug-ins, `<base>` hijacking and form posting elsewhere |
 
-Nightstand has its own policy that allows only Open-Meteo for `connect-src`. It also needs `style-src 'unsafe-inline'`, because it sets a few
+Nightstand has its own policy: `connect-src` allows Open-Meteo and, since the sleep timer (2026-11-19), the same two Spotify
+addresses as Encore, so a timer that ends while you are in Nightstand can still fade and pause the music. It also needs `style-src 'unsafe-inline'`, because it sets a few
 inline `style=""` attributes (accent swatches, forecast bars). That's a small, accepted weakening for styles only; scripts remain strict.
 
 **Verified 2026-11-18:** on Nightstand, a test request to `https://example.com` was blocked by the CSP, and Open-Meteo was allowed.
