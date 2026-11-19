@@ -446,7 +446,28 @@ body.mode-lyrics .lyrics-stage{opacity:1;visibility:visible;transition:opacity .
   transition:transform .45s var(--ease),visibility 0s linear .45s}
 .library.open{transform:none;visibility:visible;transition:transform .45s var(--ease),visibility 0s}
 body.lib-open .gear{opacity:0;pointer-events:none}
-.lib-head{display:flex;align-items:center;gap:16px;min-height:44px;flex:none}
+.lib-head{position:relative;display:flex;align-items:center;gap:16px;min-height:44px;flex:none}
+/* sleep timer: moon button (shows the minutes left while running) and its menu */
+.lib-sleep{flex:none;height:44px;min-width:44px;padding:0 11px;border-radius:22px;border:1px solid var(--hair);
+  background:rgba(255,255,255,.06);color:var(--fg);display:flex;align-items:center;justify-content:center;gap:6px;
+  font:inherit;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;cursor:pointer}
+.lib-sleep svg{width:20px;height:20px}
+.lib-sleep.on{color:var(--accent);border-color:currentColor}
+.lib-sleep span:empty{display:none}
+.sleep-menu{position:absolute;z-index:2;top:52px;right:60px;min-width:170px;padding:6px;border-radius:14px;
+  background:var(--glass-strong);border:1px solid var(--hair);-webkit-backdrop-filter:blur(30px);backdrop-filter:blur(30px);
+  box-shadow:0 16px 40px rgba(0,0,0,.5)}
+.sleep-menu button{display:flex;width:100%;align-items:center;justify-content:space-between;gap:12px;min-height:44px;
+  padding:0 14px;border:0;border-radius:9px;background:none;color:var(--fg);font:inherit;font-size:16px;font-weight:500;cursor:pointer}
+.sleep-menu button:hover,.sleep-menu button:focus-visible{background:rgba(255,255,255,.08)}
+.sleep-menu button[aria-checked="true"]{color:var(--accent)}
+.sleep-menu button[aria-checked="true"]::after{content:"✓"}
+.sleep-menu .ends{padding:6px 14px 4px;font-size:12px;color:var(--fg-3)}
+
+/* sleep screen: black, above everything; a tap brings Encore back */
+.sleep-screen{position:fixed;inset:0;z-index:40;background:#000;opacity:0;visibility:hidden;cursor:pointer;
+  transition:opacity 2s ease,visibility 0s linear 2s}
+.sleep-screen.on{opacity:1;visibility:visible;transition:opacity 2s ease,visibility 0s}
 .lib-logo{display:block;flex:none}
 .lib-logo img{display:block;width:90px;height:auto}
 .lib-device{flex:1;min-width:0;font-size:13px;font-weight:500;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

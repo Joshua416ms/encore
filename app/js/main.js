@@ -9,6 +9,7 @@
 //                                       └─▶ lyrics.update  (LRCLIB lyrics, only when turned on)
 //   modes ──onVertical("down"|"up")──▶ main ──▶ library.open/close (Spotify screen) or go to Nightstand
 //   every minute ──▶ night mode on/off, collection for this time of day
+//   sleep (js/sleep.js) ──onSleep──▶ main ──▶ black sleep screen, stop polling, let the iPad lock
 //
 // Components never reach into each other directly, so each can be changed or replaced on its own.
 import { SPOTIFY_CLIENT_ID } from "./config.js";
@@ -26,6 +27,8 @@ import { createLyricsMode } from "./ui/lyricsmode.js";
 import { createAutoMode } from "./ui/automode.js";
 import { createLibrary } from "./ui/library.js";
 import { getCollection } from "./wallpapers/library.js";
+import { createSleepTimer } from "./sleep.js";
+import { createSleepButton } from "./ui/sleepbutton.js";
 
 const $ = id => document.getElementById(id);
 const ls = {
@@ -196,7 +199,7 @@ const settingsUI = createSettings({
     if (key === "lyricsOn") { modes.refresh(); lyrics.update(lastTrack); }
     if (key === "nightMode" || key === "nightFrom" || key === "nightTo") { applyNight(); syncCollection(); autoMode.evaluate(); }
     if (key === "autoMode" || key === "autoPhotosAfter") autoMode.evaluate();
-    if (key === "wakeOn") { if (settings.wakeOn) requestWake(); else releaseWake(); }
+    if (key === "wakeOn") { if (wakeWanted()) requestWake(); else releaseWake(); }
   },
   onTab(name) { if (name === "photos") photos.render(); else photos.release(); },
   onConnect: () => openConnect(),
@@ -286,8 +289,11 @@ document.addEventListener("keydown", e => {
    iOS only grants the wake lock after a tap, and drops it when the app is hidden, so we ask again on every tap and
    when the app comes back. If it can't be had, a toast says so once (instead of the old status line). */
 let wake = null, wakeWarned = false;
+// The screen stays on when the switch is on, and ALSO while a sleep timer runs (a locked iPad freezes Encore, so the
+// timer could never stop the music). After the sleep screen comes on, nothing holds it: the iPad locks by itself.
+const wakeWanted = () => !asleep && (settings.wakeOn || sleep.active());
 async function requestWake() {
-  if (!settings.wakeOn || wake) return;
+  if (!wakeWanted() || wake) return;
   if (!("wakeLock" in navigator)) {
     if (!wakeWarned) { wakeWarned = true; toast("This browser can't keep the screen on. Set Auto-Lock to Never instead."); }
     return;
@@ -295,7 +301,7 @@ async function requestWake() {
   try {
     wake = await navigator.wakeLock.request("screen");
     wake.addEventListener("release", () => { wake = null; });
-    if (!settings.wakeOn) releaseWake();                 // switched off while the request was on its way
+    if (!wakeWanted()) releaseWake();                    // switched off while the request was on its way
   } catch {
     // Normal before the first tap after opening; only worth a message when a tap didn't help either.
     if (navigator.userActivation && navigator.userActivation.isActive && !wakeWarned) {
@@ -306,10 +312,38 @@ async function requestWake() {
 function releaseWake() { if (wake) { wake.release().catch(() => {}); wake = null; } }
 document.addEventListener("pointerdown", requestWake);
 
+/* ---------- sleep timer (decisions Q1–Q8) ----------
+   Started from the moon button in the Spotify screen. At the end the music has already faded and paused
+   (js/sleep.js); here the screen goes black, Encore stops working in the background and lets go of the screen.
+   A tap brings it back; the music stays paused. */
+let asleep = false;
+const sleep = createSleepTimer({
+  // queueMicrotask: onChange can fire while createSleepTimer is still running, before `sleep` exists.
+  onChange: () => queueMicrotask(() => { sleepButton.render(); if (wakeWanted()) requestWake(); else releaseWake(); }),
+  onSleep() {
+    asleep = true;
+    library.close(); settingsUI.close();
+    $("sleepScreen").classList.add("on");
+    releaseWake(); engine.stop(); playback.stop();
+  },
+});
+const sleepButton = createSleepButton(sleep);
+function wakeUp(e) {
+  e.preventDefault(); e.stopPropagation();
+  if (!asleep) return;
+  asleep = false;
+  $("sleepScreen").classList.remove("on");
+  tickClock(); requestWake(); engine.start();
+  if (isConnected()) playback.start();
+}
+$("sleepScreen").addEventListener("click", wakeUp);
+
 /* ---------- pause work while hidden (saves battery, avoids wasted requests) ---------- */
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
-    tickClock(); requestWake(); engine.start();
+    tickClock();
+    if (asleep) return;                                  // stays black until you tap
+    requestWake(); engine.start();
     layout.apply();   // the iPad may have rotated while the app was in the background: re-fit the widget
     applyNight(); syncCollection(); autoMode.evaluate();   // time has passed: night / time of day may have changed
     if (isConnected()) playback.start();

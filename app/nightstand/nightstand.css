@@ -197,3 +197,8 @@ a.btn{text-decoration:none}
 /* Safe-area padding (was a second inline <style>) */
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 [hidden]{display:none!important}
+
+/* ---------- sleep screen (Encore's sleep timer ended): black, a tap brings Nightstand back ---------- */
+.sleep-screen{position:fixed;inset:0;z-index:100;background:#000;opacity:0;visibility:hidden;cursor:pointer;
+  transition:opacity 2s ease,visibility 0s linear 2s}
+.sleep-screen.on{opacity:1;visibility:visible;transition:opacity 2s ease,visibility 0s}

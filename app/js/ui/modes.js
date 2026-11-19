@@ -9,9 +9,9 @@
 export const ALL_MODES = ["photos", "artwork", "lyrics", "clock"];
 
 // Where a swipe must NOT start: anything you tap or drag on purpose.
-const NO_SWIPE = "button, a, input, select, textarea, label, .bar, #sheet, #connect, .dots, .w-size";
+const NO_SWIPE = "button, a, input, select, textarea, label, .bar, #sheet, #connect, .dots, .w-size, #sleepScreen";
 // Vertical swipes may start on buttons (the Spotify screen is mostly buttons); the click that would follow is cancelled.
-const NO_VSWIPE = "input, select, textarea, .bar, #sheet, #connect, .w-size, .lib-scroll";
+const NO_VSWIPE = "input, select, textarea, .bar, #sheet, #connect, .w-size, .lib-scroll, .sleep-menu, #sleepScreen";
 const EDGE_ZONE = 56;       // px at the top and bottom of the screen where vertical swipes may not start
 const MIN_DISTANCE = 60;    // px the finger must travel sideways
 const MAX_TIME = 700;       // ms — a swipe is a quick flick, not a slow drag

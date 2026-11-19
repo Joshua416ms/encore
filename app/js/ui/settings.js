@@ -100,7 +100,7 @@ export const SCHEMA = {
     { note: "Music playing → album art. Stopped for a while → photos. Night with nothing playing → clock. If you choose a screen yourself, automatic switching pauses for 30 minutes." },
     { group: "Screen" },
     { key: "wakeOn", label: "Keep screen on", type: "switch" },
-    { note: "On: the iPad stays awake while Encore is open. If it still dims, set Auto-Lock to Never in Settings › Display & Brightness." },
+    { note: "On: the iPad stays awake while Encore or Nightstand is open. Off: it locks after its Auto-Lock time. While a sleep timer runs (moon button on the Spotify screen), the screen stays on until the timer ends." },
     { group: "Night mode" },
     { key: "nightMode", label: "Night mode", type: "select", options: [["auto", "On a schedule"], ["on", "Always on"], ["off", "Off"]] },
     { key: "nightFrom", label: "Night starts", type: "time" },

@@ -165,28 +165,62 @@
     };
   }
 
-  /* ---------- keep screen awake ---------- */
-  let wake = null;
+  /* ---------- keep screen awake ----------
+     Follows Encore's switch (Encore › Settings › Display › Keep screen on), and also stays on while Encore's sleep
+     timer runs: a locked iPad freezes this page, so the timer could not stop the music. */
+  let wake = null, asleep = false, sleepTimer = null;
+  const wakeSwitchOn = () => { try { return JSON.parse(localStorage.getItem("encore.settings") || "{}").wakeOn !== false; } catch (e) { return true; } };
+  const timerOn = () => !!(sleepTimer && sleepTimer.active());
+  const wakeWanted = () => !asleep && (wakeSwitchOn() || timerOn());
   function setWake(ok, text, note) {
     $("wakeStatus").classList.toggle("ok", ok);
     $("wakeStatus").querySelector("span").textContent = text;
     if (note) $("wakeNote").textContent = note;
   }
+  function releaseWake() { if (wake) { wake.release().catch(() => {}); wake = null; } }
+  function describeOff() {
+    setWake(false, "Off", "The iPad locks by itself after its Auto-Lock time. To keep it on, open Encore › Settings › Display › Keep screen on.");
+  }
   async function requestWake() {
+    if (!wakeWanted()) { releaseWake(); describeOff(); return; }
     if (!("wakeLock" in navigator)) {
       setWake(false, "Not supported here", "This browser can't keep the screen on. In Settings > Display & Brightness, set Auto-Lock to Never while you use Nightstand.");
       return;
     }
-    if (wake) return;
+    const why = () => timerOn() && !wakeSwitchOn()
+      ? "On until the sleep timer ends at " + new Date(sleepTimer.endsAt()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + ". Then the iPad locks by itself."
+      : "Nightstand is keeping the iPad awake while it's open.";
+    if (wake) { setWake(true, "Screen will stay on", why()); return; }
     try {
       wake = await navigator.wakeLock.request("screen");
-      setWake(true, "Screen will stay on", "Nightstand is keeping the iPad awake while it's open.");
-      wake.addEventListener("release", () => { wake = null; setWake(false, "Paused", "Tap the screen to keep the iPad awake again."); });
+      if (!wakeWanted()) { releaseWake(); describeOff(); return; }
+      setWake(true, "Screen will stay on", why());
+      wake.addEventListener("release", () => {
+        wake = null;
+        if (wakeWanted()) setWake(false, "Paused", "Tap the screen to keep the iPad awake again.");
+      });
     } catch (e) {
       setWake(false, "Tap the screen to turn on", "The iPad needs one tap before Nightstand can keep it awake. If it still dims, set Auto-Lock to Never in Settings > Display & Brightness.");
     }
   }
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { requestWake(); tick(); } });
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { if (!asleep) requestWake(); tick(); } });
+
+  /* ---------- sleep timer (started in Encore's Spotify screen; shared code in ../js/sleep.js) ----------
+     The timer keeps running here. When it ends, the music has already faded and paused; the screen goes black and
+     Nightstand lets go of the screen so the iPad locks. A tap brings Nightstand back. */
+  import("../js/sleep.js").then(m => {
+    sleepTimer = m.createSleepTimer({
+      onChange: () => requestWake(),
+      onSleep() { asleep = true; closeSheet(); $("sleepScreen").classList.add("on"); releaseWake(); },
+    });
+    requestWake();
+  }).catch(() => { /* no Spotify module (e.g. opened from a file): the timer just isn't available here */ });
+  $("sleepScreen").addEventListener("click", e => {
+    e.stopPropagation();
+    asleep = false;
+    $("sleepScreen").classList.remove("on");
+    requestWake(); tick();
+  });
   document.addEventListener("pointerdown", requestWake);
 
   /* ---------- photos (stored in IndexedDB on this device) ---------- */
@@ -432,7 +466,7 @@
   let vs = null;
   function vStart(x, y, target) {
     const edge = y < 56 || y > window.innerHeight - 56;
-    vs = edge || target.closest("#sheet, input, select, textarea") ? null : { x, y, t: Date.now() };
+    vs = edge || asleep || target.closest("#sheet, input, select, textarea") ? null : { x, y, t: Date.now() };
   }
   function vEnd(x, y) {
     if (!vs) return;

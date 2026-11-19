@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src https://api.open-meteo.com https://geocoding-api.open-meteo.com; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src https://api.open-meteo.com https://geocoding-api.open-meteo.com https://accounts.spotify.com https://api.spotify.com; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>Nightstand</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -130,6 +130,9 @@
     <li>Turn the iPad on its side. Swipe left and right to change views; tap to show these controls.</li>
   </ol>
 </aside>
+
+<!-- Shown when Encore's sleep timer ends while you are here. Tap to come back. -->
+<div class="sleep-screen" id="sleepScreen" aria-hidden="true"></div>
 
 <script src="nightstand.js"></script>
 </body>
