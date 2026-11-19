@@ -1,34 +1,39 @@
 // Lyrics mode: shows the current song's lyrics, highlighting the line being sung.
-// If a song has no lyrics (or they are still loading), <body> gets the class "lyrics-none" and CSS shows the
-// album-art screen instead (your choice: the cover rather than a "no lyrics" message).
+// The Lyrics screen only exists while the current song HAS lyrics (`has`). When that changes, onAvailability(has)
+// tells main.js, which moves you to Album art (and back again later; see main.js "lyrics availability").
+// While the next song's lyrics are loading, the screen keeps showing the previous lyrics, so there is exactly one
+// transition: straight to the new lyrics, or straight to Album art.
 import { getLyrics } from "../lyrics/lrclib.js";
 
 const $ = id => document.getElementById(id);
 
-export function createLyricsMode({ playback, settings }) {
+export function createLyricsMode({ playback, settings, onAvailability }) {
   const view = $("lyricsView"), list = $("lyricsLines");
-  let trackId, data = { status: "none" }, current = -2, ticket = 0;
+  let trackId, data = { status: "none" }, current = -2, ticket = 0, has = false, loading = false;
 
-  const setNone = v => document.body.classList.toggle("lyrics-none", v);
-  setNone(true);
+  function setHas(v) {
+    if (v === has) return;
+    has = v;
+    onAvailability && onAvailability(has);
+  }
 
   /** Called whenever the playing item changes (and when lyrics are switched on/off). */
   async function update(track) {
     const id = track && settings.lyricsOn ? track.id : null;
     if (id === trackId) return;
     trackId = id;
-    data = { status: "none" };
-    current = -2;
-    list.textContent = "";
-    list.style.transform = "";
-    setNone(true);                                   // show the cover while loading or when there are none
-    $("lyricsTitle").textContent = track ? `${track.title} · ${track.artists}` : "";
-    $("lyricsLogo").href = (track && track.url) || "https://open.spotify.com/";
-    if (!id) return;
     const mine = ++ticket;
-    const d = await getLyrics(track);
+    if (!id) { loading = false; data = { status: "none" }; list.textContent = ""; setHas(false); return; }
+    // Keep showing the old lyrics (and title), frozen, until the new ones are known.
+    loading = true;
+    const d = await getLyrics(track).catch(() => ({ status: "none" }));
     if (mine !== ticket) return;                     // the song changed while we were waiting
+    loading = false;
     data = d;
+    current = -2;
+    list.style.transform = "";
+    $("lyricsTitle").textContent = `${track.title} · ${track.artists}`;
+    $("lyricsLogo").href = track.url || "https://open.spotify.com/";
     render();
   }
 
@@ -42,7 +47,7 @@ export function createLyricsMode({ playback, settings }) {
       li.textContent = text || "♪";                  // textContent: lyrics are shown as plain text, never as HTML
       list.append(li);
     }
-    setNone(!lines.length);
+    setHas(lines.length > 0);
     tick(true);
   }
 
@@ -55,7 +60,7 @@ export function createLyricsMode({ playback, settings }) {
   }
 
   function tick(force) {
-    if (!force && !document.body.classList.contains("mode-lyrics")) return;
+    if (loading || (!force && !document.body.classList.contains("mode-lyrics"))) return;
     const pos = playback.position() + (settings.lyricsOffset || 0) * 1000;
     if (data.status === "synced") {
       const i = lineAt(pos);
@@ -73,5 +78,5 @@ export function createLyricsMode({ playback, settings }) {
   }
   setInterval(() => { if (!document.hidden) tick(false); }, 200);
 
-  return { update, refresh: () => tick(true) };
+  return { update, refresh: () => tick(true), get has() { return has; } };
 }

@@ -6,8 +6,10 @@ Only listens on 127.0.0.1, so nothing else on your network can reach it.
 
 Run from the project folder:  python tools/serve.py
 Then open:                     http://127.0.0.1:5173/
+A different port (e.g. when 5173 is busy): set PORT=5175 first.
 """
 import functools
+import os
 import http.server
 from pathlib import Path
 
@@ -22,6 +24,7 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     handler = functools.partial(NoCacheHandler, directory=str(APP_DIR))
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 5173), handler)
-    print("Serving app/ at http://127.0.0.1:5173/  (Ctrl+C to stop)")
+    port = int(os.environ.get("PORT", "5173"))
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", port), handler)
+    print(f"Serving app/ at http://127.0.0.1:{port}/  (Ctrl+C to stop)", flush=True)
     server.serve_forever()

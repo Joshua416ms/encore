@@ -15,10 +15,10 @@ export const DEFAULTS = {
   // Display mode (swipe or dots): "photos" | "artwork" | "clock"
   mode: "photos",
   // Spotify widget — wScale multiplies every size below (the +/− buttons change it)
-  wScale: 1, wWidth: 400,
+  wScale: 1,
   // Widget position: a corner preset ("tl","tr","bl","br") or "custom" (dragged). wX/wY = fractions of the free space.
-  wPos: "tr", wX: 1, wY: 0, wHeight: 0, wOpacity: 0.38, wBlur: 24, wPad: 14,
-  artOn: true, artSize: 112, artRadius: 8,
+  wPos: "tr", wX: 1, wY: 0, wOpacity: 0.38,
+  artOn: true, artSize: 112,
   infoOn: true, textScale: 1, albumOn: false,
   controlsOn: true, extrasOn: true, progressOn: true, accent: "art",     // "art" | "green" | "white"
   // Clock
@@ -35,7 +35,13 @@ export const DEFAULTS = {
   nightMode: "auto", nightFrom: "22:00", nightTo: "07:00",
   // Lyrics (LRCLIB, community-sourced) — off until you turn it on
   lyricsOn: false, lyricsOffset: 0,
+  // Keep the iPad awake while Encore is open (Screen Wake Lock)
+  wakeOn: true,
 };
+
+// Widget sizes that are no longer settings (decided 2026-11-19): always these values. Resizing is done with − / +
+// (wScale). Old saved values for these keys are deleted on load (see main.js), so every iPad looks the same.
+export const FIXED = { wWidth: 400, wHeight: 0, wPad: 14, wBlur: 24, artRadius: 8 };
 
 const POS = [["tr", "Top right"], ["tl", "Top left"], ["br", "Bottom right"], ["bl", "Bottom left"]];
 const px = v => `${v} px`;
@@ -63,15 +69,10 @@ export const SCHEMA = {
     { key: "wScale", label: "Overall size (same as the − / + buttons)", type: "range", min: 0.8, max: 1.8, step: 0.1, fmt: pct },
     { key: "wPos", label: "Position (or press and hold the widget, then drag it)", type: "select",
       options: [...POS, ["custom", "Custom (dragged)"]] },
-    { key: "wWidth", label: "Width", type: "range", min: 260, max: 760, step: 10, fmt: px },
-    { key: "wHeight", label: "Minimum height", type: "range", min: 0, max: 560, step: 10, fmt: v => (v ? px(v) : "Auto") },
     { key: "wOpacity", label: "Background darkness", type: "range", min: 0.1, max: 0.9, step: 0.02, fmt: pct },
-    { key: "wBlur", label: "Background blur", type: "range", min: 0, max: 60, step: 2, fmt: px },
-    { key: "wPad", label: "Padding", type: "range", min: 8, max: 32, step: 1, fmt: px },
     { group: "Album artwork" },
     { key: "artOn", label: "Show artwork", type: "switch" },
     { key: "artSize", label: "Artwork size", type: "range", min: 48, max: 420, step: 4, fmt: px },
-    { key: "artRadius", label: "Corner radius (Spotify allows up to 8 px)", type: "range", min: 0, max: 8, step: 1, fmt: px },
     { group: "Song info" },
     { key: "infoOn", label: "Show song info", type: "switch" },
     { key: "textScale", label: "Text size", type: "range", min: 0.8, max: 1.8, step: 0.05, fmt: pct },
@@ -97,6 +98,9 @@ export const SCHEMA = {
     { key: "autoMode", label: "Switch screens automatically", type: "switch" },
     { key: "autoPhotosAfter", label: "Back to photos after music stops", type: "range", min: 1, max: 15, step: 1, fmt: v => `${v} min` },
     { note: "Music playing → album art. Stopped for a while → photos. Night with nothing playing → clock. If you choose a screen yourself, automatic switching pauses for 30 minutes." },
+    { group: "Screen" },
+    { key: "wakeOn", label: "Keep screen on", type: "switch" },
+    { note: "On: the iPad stays awake while Encore is open. If it still dims, set Auto-Lock to Never in Settings › Display & Brightness." },
     { group: "Night mode" },
     { key: "nightMode", label: "Night mode", type: "select", options: [["auto", "On a schedule"], ["on", "Always on"], ["off", "Off"]] },
     { key: "nightFrom", label: "Night starts", type: "time" },
@@ -299,26 +303,6 @@ export function createSettings({ settings, onChange, client, playback, redirect,
     b.dataset.armed = "1"; b.textContent = "Tap again to disconnect";
     setTimeout(() => { delete b.dataset.armed; b.textContent = "Disconnect Spotify"; }, 4000);
   });
-
-  // Full screen: works in Safari; a Home Screen app is already full screen.
-  const fsBtn = $("fullscreenBtn"), docEl = document.documentElement;
-  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
-  const fsSupported = !!(docEl.requestFullscreen || docEl.webkitRequestFullscreen);
-  const inFs = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
-  const fsLabel = () => {
-    if (standalone) { fsBtn.textContent = "Already full screen"; fsBtn.disabled = true; }
-    else if (!fsSupported) { fsBtn.textContent = "Not available here"; fsBtn.disabled = true; }
-    else fsBtn.textContent = inFs() ? "Exit full screen" : "Enter full screen";
-  };
-  fsBtn.addEventListener("click", async () => {
-    try {
-      if (inFs()) await (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-      else await (docEl.requestFullscreen || docEl.webkitRequestFullscreen).call(docEl);
-    } catch { toast("This browser didn't allow full screen. Add Encore to the Home Screen instead."); }
-  });
-  document.addEventListener("fullscreenchange", fsLabel);
-  document.addEventListener("webkitfullscreenchange", fsLabel);
-  fsLabel();
 
   return { open, close, isOpen, sync, get tab() { return tab; } };
 }

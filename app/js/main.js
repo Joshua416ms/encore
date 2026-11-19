@@ -7,15 +7,16 @@
 //                                             └─▶ autoMode.onPlayback  (picks the screen: album art / photos / clock)
 //   nowPlaying ──onTrack(track)──▶ main ──▶ artMode.update (cover; reports its accent colour back)
 //                                       └─▶ lyrics.update  (LRCLIB lyrics, only when turned on)
+//   modes ──onVertical("down"|"up")──▶ main ──▶ library.open/close (Spotify screen) or go to Nightstand
 //   every minute ──▶ night mode on/off, collection for this time of day
 //
 // Components never reach into each other directly, so each can be changed or replaced on its own.
 import { SPOTIFY_CLIENT_ID } from "./config.js";
-import { redirectUri, beginLogin, handleRedirect, isConnected, logout, canSignIn } from "./spotify/auth.js";
+import { redirectUri, beginLogin, handleRedirect, isConnected, logout, canSignIn, missingScopes } from "./spotify/auth.js";
 import { createClient } from "./spotify/client.js";
 import { createPlayback } from "./spotify/playback.js";
 import { createNowPlaying } from "./ui/nowplaying.js";
-import { createSettings, DEFAULTS } from "./ui/settings.js";
+import { createSettings, DEFAULTS, FIXED } from "./ui/settings.js";
 import { createLayout } from "./ui/layout.js";
 import { createPhotos } from "./ui/photos.js";
 import { createWallpaperEngine } from "./wallpapers/engine.js";
@@ -23,6 +24,7 @@ import { createModes } from "./ui/modes.js";
 import { createArtMode } from "./ui/artmode.js";
 import { createLyricsMode } from "./ui/lyricsmode.js";
 import { createAutoMode } from "./ui/automode.js";
+import { createLibrary } from "./ui/library.js";
 import { getCollection } from "./wallpapers/library.js";
 
 const $ = id => document.getElementById(id);
@@ -36,6 +38,8 @@ const settings = { ...DEFAULTS };
 try { Object.assign(settings, JSON.parse(ls.get("encore.settings") || "{}")); } catch {}
 let saveTimer;
 const save = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => ls.set("encore.settings", JSON.stringify(settings)), 150); };
+// Removed settings (widget width, height, padding, blur, corner radius): forget any saved values for good.
+if (Object.keys(FIXED).some(k => k in settings)) { for (const k of Object.keys(FIXED)) delete settings[k]; save(); }
 const clientId = () => (ls.get("encore.spotify.clientId") || SPOTIFY_CLIENT_ID || "").trim();
 
 /* ---------- toast ---------- */
@@ -118,6 +122,7 @@ const playback = createPlayback(client, (state, err) => {
     return;
   }
   nowPlaying.render(state, err);
+  library.render(state);
   if (!err) autoMode.onPlayback(state);
   if (settingsUI.isOpen()) settingsUI.sync();
 });
@@ -130,18 +135,41 @@ function applyAccent() {
   else root.style.removeProperty("--accent");
 }
 const artMode = createArtMode({ onAccent: c => { artAccent = c; applyAccent(); } });
-const lyrics = createLyricsMode({ playback, settings });
+const lyrics = createLyricsMode({ playback, settings, onAvailability: lyricsAvailability });
 let lastTrack = null;
 const nowPlaying = createNowPlaying(playback, {
-  onTrack: t => { lastTrack = t; artMode.update(t, true); lyrics.update(t); },
+  onTrack: t => { lastTrack = t; artMode.update(t, true); lyrics.update(t); library.onTrack(); },
 });
+
+// The Spotify screen (swipe down). Reconnecting is needed once for sign-ins made before it existed.
+const library = createLibrary({ client, playback, toast, missingScopes, onReconnect: () => openConnect() });
+
+/* ---------- lyrics availability ----------
+   The Lyrics screen only exists while the song has lyrics. If you were on it and the next song has none, Encore
+   moves you to Album art and remembers that (returnToLyrics); when a later song has lyrics, it takes you back.
+   Choosing a screen yourself (swipe, dot, key) forgets that memory: your choice wins. */
+let returnToLyrics = false;
+function lyricsAvailability(has) {
+  if (has && returnToLyrics && modes.mode === "artwork") modes.set("lyrics", "auto");
+  else modes.refresh();                                  // hides/shows the dot; leaves Lyrics if it just vanished
+}
 
 const modes = createModes({
   settings, save,
   isDragging: () => layout.isDragging(),
-  onModeChange(mode, source) {
+  hasLyrics: () => lyrics.has,
+  isPanelOpen: () => library.isOpen(),
+  onVertical(dir) {
+    if (settingsUI.isOpen() || !$("connect").hidden) return;
+    if (library.isOpen()) { if (dir === "up") library.close(); return; }
+    if (dir === "down") { if (isConnected()) library.open(); else openConnect(); }
+    else goNightstand();
+  },
+  onModeChange(mode, source, requested) {
     document.body.classList.remove("ui");
     if (source === "user") autoMode.onUserChoice();      // you chose: automatic switching steps back for 30 min
+    if (source === "user" || mode !== "artwork") returnToLyrics = false;
+    if (requested === "lyrics" && mode === "artwork" && settings.lyricsOn) returnToLyrics = true;
     if (mode === "lyrics") lyrics.refresh();
   },
 });
@@ -168,10 +196,11 @@ const settingsUI = createSettings({
     if (key === "lyricsOn") { modes.refresh(); lyrics.update(lastTrack); }
     if (key === "nightMode" || key === "nightFrom" || key === "nightTo") { applyNight(); syncCollection(); autoMode.evaluate(); }
     if (key === "autoMode" || key === "autoPhotosAfter") autoMode.evaluate();
+    if (key === "wakeOn") { if (settings.wakeOn) requestWake(); else releaseWake(); }
   },
   onTab(name) { if (name === "photos") photos.render(); else photos.release(); },
   onConnect: () => openConnect(),
-  onDisconnect() { logout(); playback.stop(); nowPlaying.setPremiumBlocked(false); setConnected(false); },
+  onDisconnect() { logout(); playback.stop(); nowPlaying.setPremiumBlocked(false); library.close(); library.reset(); setConnected(false); },
 });
 
 /* ---------- Spotify connection state ---------- */
@@ -244,7 +273,7 @@ document.addEventListener("click", e => {
   showUI();
 });
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape") { settingsUI.close(); closeConnect(); }
+  if (e.key === "Escape") { settingsUI.close(); closeConnect(); library.close(); }
   if (e.target.closest("input, select, textarea, #bar")) return;
   if (e.key === "ArrowRight") modes.step(1);
   if (e.key === "ArrowLeft") modes.step(-1);
@@ -253,19 +282,28 @@ document.addEventListener("keydown", e => {
   if (e.key === " " && isConnected() && !e.target.closest("button")) { e.preventDefault(); playback.togglePlay(); }
 });
 
-/* ---------- keep the screen on ---------- */
-let wake = null;
+/* ---------- keep the screen on (Settings › Display › Keep screen on) ----------
+   iOS only grants the wake lock after a tap, and drops it when the app is hidden, so we ask again on every tap and
+   when the app comes back. If it can't be had, a toast says so once (instead of the old status line). */
+let wake = null, wakeWarned = false;
 async function requestWake() {
-  if (!("wakeLock" in navigator)) { $("wakeState").textContent = "Not supported"; return; }
-  if (wake) return;
+  if (!settings.wakeOn || wake) return;
+  if (!("wakeLock" in navigator)) {
+    if (!wakeWarned) { wakeWarned = true; toast("This browser can't keep the screen on. Set Auto-Lock to Never instead."); }
+    return;
+  }
   try {
     wake = await navigator.wakeLock.request("screen");
-    $("wakeState").textContent = "On";
-    wake.addEventListener("release", () => { wake = null; $("wakeState").textContent = "Paused"; });
+    wake.addEventListener("release", () => { wake = null; });
+    if (!settings.wakeOn) releaseWake();                 // switched off while the request was on its way
   } catch {
-    $("wakeState").textContent = "Tap the screen to turn on";
+    // Normal before the first tap after opening; only worth a message when a tap didn't help either.
+    if (navigator.userActivation && navigator.userActivation.isActive && !wakeWarned) {
+      wakeWarned = true; toast("The iPad didn't allow Encore to keep the screen on.");
+    }
   }
 }
+function releaseWake() { if (wake) { wake.release().catch(() => {}); wake = null; } }
 document.addEventListener("pointerdown", requestWake);
 
 /* ---------- pause work while hidden (saves battery, avoids wasted requests) ---------- */
@@ -296,9 +334,10 @@ function makeTouchIcon() {
   } catch {}
 }
 
-/* ---------- switching between Encore and Nightstand ---------- */
+/* ---------- switching between Encore and Nightstand ----------
+   Swipe UP goes to Nightstand; swiping DOWN there comes back. The Home Screen icon reopens the app used last. */
 ls.set("standby.app", "encore");
-$("toNightstand").addEventListener("click", () => ls.set("standby.app", "nightstand"));
+function goNightstand() { ls.set("standby.app", "nightstand"); location.assign("nightstand/"); }
 
 /* ---------- start ---------- */
 /* ---------- every minute: night mode and the time-of-day collection ---------- */

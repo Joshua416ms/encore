@@ -184,6 +184,65 @@
   <svg viewBox="0 0 24 24" class="stroke"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/></svg>
 </button>
 
+<!-- ===== Spotify screen (ui/library.js): swipe DOWN from any screen to open, swipe UP (or the chevron) to close ===== -->
+<section class="library" id="library" aria-label="Spotify" aria-hidden="true">
+  <header class="lib-head">
+    <!-- Required Spotify attribution: the full logo (at least 70 px), linking back to Spotify -->
+    <a class="lib-logo" id="libLogo" href="https://open.spotify.com/" target="_blank" rel="noopener noreferrer" aria-label="Open in Spotify">
+      <img src="assets/spotify/Full_Logo_White_RGB.svg" alt="Spotify" width="90" height="25" draggable="false">
+    </a>
+    <span class="lib-device" id="libDevice">No active device</span>
+    <button class="lib-close" id="libClose" type="button" aria-label="Close the Spotify screen">
+      <svg viewBox="0 0 24 24" class="stroke"><path d="M6 15l6-6 6 6"/></svg>
+    </button>
+  </header>
+  <div class="lib-body">
+    <div class="lib-now">
+      <div class="lib-art"><img id="libArt" alt="" draggable="false"></div>
+      <div class="lib-meta">
+        <h2 id="libTitle">Nothing playing</h2>
+        <p id="libArtist"></p>
+      </div>
+      <div class="lib-progress">
+        <div class="bar-track"><div class="bar-fill" id="libBarFill"></div></div>
+        <div class="times"><span id="libElapsed">0:00</span><span id="libRemaining">0:00</span></div>
+      </div>
+      <div class="lib-controls">
+        <button class="ctl extra" id="libShuffle" type="button" aria-label="Shuffle" aria-pressed="false">
+          <svg viewBox="0 0 24 24" class="stroke"><path d="M3 7h3.5c2 0 3.2 1 4.3 2.7l2.4 4.6c1.1 1.7 2.3 2.7 4.3 2.7H21M3 17h3.5c1.6 0 2.7-.6 3.6-1.7M13.9 8.7c.9-1.1 2-1.7 3.6-1.7H21M18 4l3 3-3 3M18 14l3 3-3 3"/></svg>
+        </button>
+        <button class="ctl" id="libPrev" type="button" aria-label="Previous track">
+          <svg viewBox="0 0 24 24" class="fill"><path d="M18 6.2v11.6c0 .8-.9 1.3-1.6.8L8.8 13a1.2 1.2 0 0 1 0-2l7.6-5.6c.7-.5 1.6 0 1.6.8z"/><rect x="5.6" y="5.6" width="2.4" height="12.8" rx="1.2"/></svg>
+        </button>
+        <button class="ctl play" id="libPlay" type="button" aria-label="Play">
+          <svg viewBox="0 0 24 24" class="fill icon-play"><path d="M8 5.9v12.2c0 .9 1 1.4 1.7.9l9.2-6.1a1.1 1.1 0 0 0 0-1.8L9.7 5c-.7-.5-1.7 0-1.7.9z"/></svg>
+          <svg viewBox="0 0 24 24" class="fill icon-pause"><rect x="6.5" y="5" width="4" height="14" rx="1.2"/><rect x="13.5" y="5" width="4" height="14" rx="1.2"/></svg>
+        </button>
+        <button class="ctl" id="libNext" type="button" aria-label="Next track">
+          <svg viewBox="0 0 24 24" class="fill"><path d="M6 6.2v11.6c0 .8.9 1.3 1.6.8l7.6-5.6a1.2 1.2 0 0 0 0-2L7.6 5.4C6.9 4.9 6 5.4 6 6.2z"/><rect x="16" y="5.6" width="2.4" height="12.8" rx="1.2"/></svg>
+        </button>
+        <button class="ctl extra" id="libRepeat" type="button" aria-label="Repeat: off">
+          <svg viewBox="0 0 24 24" class="stroke"><path d="M4 11V9a3 3 0 0 1 3-3h12M16 3l3 3-3 3M20 13v2a3 3 0 0 1-3 3H5M8 21l-3-3 3-3"/></svg>
+          <span class="one" aria-hidden="true">1</span>
+        </button>
+      </div>
+      <label class="lib-volume" id="libVolumeRow">
+        <svg viewBox="0 0 24 24" class="stroke" aria-hidden="true"><path d="M4 9h3l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/></svg>
+        <input type="range" id="libVolume" min="0" max="100" step="1" value="50" aria-label="Volume">
+      </label>
+    </div>
+    <div class="lib-scroll" id="libScroll">
+      <div class="lib-reconnect" id="libReconnect" hidden>
+        <p>Connect Spotify once more so Encore can show your playlists, saved albums and history. Encore only reads them, never changes them.</p>
+        <button class="btn tiny" type="button" id="libReconnectBtn">Reconnect Spotify</button>
+      </div>
+      <div id="libMain"></div>
+      <div id="libDetail" hidden></div>
+    </div>
+  </div>
+  <div class="lib-grab" aria-hidden="true"></div>
+</section>
+
 <!-- ===== Connect Spotify (pop-up) ===== -->
 <div class="modal" id="connect" hidden>
   <div class="connect-card" role="dialog" aria-modal="true" aria-labelledby="connectTitle">
@@ -267,15 +326,8 @@
   <section class="tab-panel" data-panel="display" role="tabpanel" hidden>
     <div id="rowsDisplay"></div>
     <div class="group">
-      <h3>Screen</h3>
-      <div class="row"><span>Full screen</span><button class="btn ghost tiny" type="button" id="fullscreenBtn">Enter full screen</button></div>
-      <div class="row"><span>Keep screen on</span><span class="value" id="wakeState">Checking…</span></div>
-      <p class="hint">If the iPad still dims, set Auto-Lock to Never in Settings › Display &amp; Brightness.</p>
-      <p class="hint"><b>Dim the real screen at night</b> (Encore can't change iPad brightness itself): open the <b>Shortcuts</b> app › <b>Automation</b> › <b>+</b> › <b>Time of Day</b> › 22:00 › <b>Run Immediately</b> › add <b>Set Brightness</b> (e.g. 10%). Make a second automation at 07:00 that sets it back (e.g. 60%).</p>
-    </div>
-    <div class="group">
-      <h3>Apps</h3>
-      <div class="row"><span>Nightstand clock, weather and photos</span><a class="btn ghost tiny" id="toNightstand" href="nightstand/">Switch</a></div>
+      <h3>Tip: dim the real screen at night</h3>
+      <p class="hint">Encore can't change iPad brightness itself. Open the <b>Shortcuts</b> app › <b>Automation</b> › <b>+</b> › <b>Time of Day</b> › 22:00 › <b>Run Immediately</b> › add <b>Set Brightness</b> (e.g. 10%). Make a second automation at 07:00 that sets it back (e.g. 60%).</p>
     </div>
   </section>
 

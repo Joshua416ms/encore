@@ -41,7 +41,9 @@ function normalize(p) {
     };
   }
   return {
-    device: p.device ? { id: p.device.id, name: p.device.name, type: p.device.type, restricted: p.device.is_restricted } : null,
+    device: p.device ? { id: p.device.id, name: p.device.name, type: p.device.type, restricted: p.device.is_restricted,
+      volume: typeof p.device.volume_percent === "number" ? p.device.volume_percent : null,
+      supportsVolume: p.device.supports_volume !== false } : null,
     isPlaying: !!p.is_playing,
     progress: p.progress_ms || 0,
     shuffle: !!p.shuffle_state,
@@ -146,5 +148,7 @@ export function createPlayback(client, onChange) {
       return command(() => client.repeat(nextMode), s => { s.repeat = nextMode; });
     },
     transfer: id => command(() => client.transfer(id, true)),
+    setVolume: pct => command(() => client.volume(pct), s => { if (s.device) s.device = { ...s.device, volume: pct }; }),
+    playItem: what => command(() => client.playItem(what), s => { s.isPlaying = true; }),
   };
 }

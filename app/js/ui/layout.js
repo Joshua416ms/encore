@@ -8,6 +8,8 @@
 //   • any value 0–1 is always fully on screen (it can't be lost off the edge),
 //   • resizing the widget or rotating the iPad keeps it in the same relative place,
 //   • the four corner presets are just (0,0) (1,0) (0,1) (1,1).
+import { FIXED } from "./settings.js";   // widget width, padding, blur, corners: fixed, no longer settings
+
 const $ = id => document.getElementById(id);
 
 const EDGE = 20;          // must match --edge in app.css
@@ -38,12 +40,12 @@ export function createLayout({ settings, save, onPositionChange }) {
 
     // Feature A — overall size: one multiplier for every widget dimension, so proportions never change.
     // If the scaled widget would be wider than the screen, the multiplier is reduced to fit.
-    const fitScale = (vw - 2 * edge) / s.wWidth;
+    const fitScale = (vw - 2 * edge) / FIXED.wWidth;
     const scale = Math.max(0.5, Math.min(s.wScale, fitScale));
 
     // Widget size (each setting × scale), limited to what fits on this screen.
-    const width = Math.max(220, Math.min(s.wWidth * scale, vw - 2 * edge));
-    const pad = s.wPad * scale;
+    const width = Math.max(220, Math.min(FIXED.wWidth * scale, vw - 2 * edge));
+    const pad = FIXED.wPad * scale;
     const inner = width - 2 * pad;
 
     // Artwork size: your setting × scale, but never wider than the widget or taller than 60% of the screen.
@@ -67,11 +69,10 @@ export function createLayout({ settings, save, onPositionChange }) {
 
     const w = widget.style;
     w.setProperty("--w-width", width + "px");
-    w.setProperty("--w-height", s.wHeight ? Math.min(s.wHeight, vh - 2 * edge) + "px" : "auto");
     w.setProperty("--w-pad", pad + "px");
-    w.setProperty("--w-blur", s.wBlur + "px");
+    w.setProperty("--w-blur", FIXED.wBlur + "px");
     w.setProperty("--art", art + "px");
-    w.setProperty("--art-radius", Math.min(8, Math.max(0, s.artRadius)) + "px");  // Spotify: max 8 px
+    w.setProperty("--art-radius", FIXED.artRadius + "px");  // Spotify: max 8 px
     w.setProperty("--t", s.textScale * scale);
     w.setProperty("--s", scale);
     $("widgetSmaller").disabled = s.wScale <= SCALE_MIN + 0.001;

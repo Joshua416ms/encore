@@ -6,10 +6,21 @@ const AUTH_URL = "https://accounts.spotify.com/authorize";
 const TOKEN_URL = "https://accounts.spotify.com/api/token";
 // Least privilege: only the permissions Encore actually uses.
 //  user-read-playback-state   -> GET /me/player and /me/player/devices (what's playing, on which device)
-//  user-modify-playback-state -> play, pause, skip, seek, shuffle, repeat, switch device
+//  user-modify-playback-state -> play, pause, skip, seek, shuffle, repeat, volume, switch device, play a playlist/album
+//  The Spotify screen (swipe down) only READS your library; it never changes it:
+//  playlist-read-private        -> GET /me/playlists (your private playlists)
+//  playlist-read-collaborative  -> GET /me/playlists (collaborative ones) and their songs
+//  user-library-read            -> GET /me/albums (saved albums)
+//  user-read-recently-played    -> GET /me/player/recently-played
+//  user-read-currently-playing  -> GET /me/player/queue (Up next)
 export const SCOPES = [
   "user-read-playback-state",
   "user-modify-playback-state",
+  "playlist-read-private",
+  "playlist-read-collaborative",
+  "user-library-read",
+  "user-read-recently-played",
+  "user-read-currently-playing",
 ];
 
 const KEY = {
@@ -167,4 +178,11 @@ export async function getAccessToken(clientId, force = false) {
 }
 
 export const isConnected = () => !!load();
+/** Permissions this device's sign-in is missing (an older sign-in from before the Spotify screen existed). */
+export function missingScopes() {
+  const t = load();
+  if (!t) return [];
+  const have = new Set(String(t.scope || "").split(/\s+/));
+  return SCOPES.filter(s => !have.has(s));
+}
 export function logout() { store.del(KEY.token); }

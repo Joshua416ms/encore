@@ -421,9 +421,30 @@
     if (document.visibilityState === "visible" && (!WX || Date.now() - WX.fetched > 15 * 60 * 1000)) fetchWeather();
   });
 
-  /* ---------- switching between Nightstand and Encore ---------- */
+  /* ---------- switching between Nightstand and Encore ----------
+     Swipe DOWN anywhere (not in Settings, not starting at the top/bottom edge where iPadOS has its own gestures)
+     goes back to Encore. In Encore, swiping UP comes here. The Home Screen icon reopens whichever app was used last. */
   try { localStorage.setItem("standby.app", "nightstand"); } catch (e) {}
-  $("toEncore").addEventListener("click", () => { try { localStorage.setItem("standby.app", "encore"); } catch (e) {} });
+  function toEncore() {
+    try { localStorage.setItem("standby.app", "encore"); } catch (e) {}
+    location.assign("../");
+  }
+  let vs = null;
+  function vStart(x, y, target) {
+    const edge = y < 56 || y > window.innerHeight - 56;
+    vs = edge || target.closest("#sheet, input, select, textarea") ? null : { x, y, t: Date.now() };
+  }
+  function vEnd(x, y) {
+    if (!vs) return;
+    const dx = x - vs.x, dy = y - vs.y, quick = Date.now() - vs.t < 700;
+    vs = null;
+    if (quick && dy > 60 && dy > Math.abs(dx) * 1.5) toEncore();
+  }
+  // Touch events (not pointer events): the horizontal pager scrolls natively, which cancels pointer events.
+  document.addEventListener("touchstart", e => { if (e.touches.length === 1) { const t = e.touches[0]; vStart(t.clientX, t.clientY, e.target); } else vs = null; }, { passive: true });
+  document.addEventListener("touchend", e => { const t = e.changedTouches[0]; if (t) vEnd(t.clientX, t.clientY); }, { passive: true });
+  document.addEventListener("mousedown", e => vStart(e.clientX, e.clientY, e.target));
+  document.addEventListener("mouseup", e => vEnd(e.clientX, e.clientY));
 
   /* ---------- start ---------- */
   applySettings();

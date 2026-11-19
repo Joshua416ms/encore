@@ -73,5 +73,19 @@ export function createClient(getClientId) {
     shuffle: on => call("PUT", "/me/player/shuffle", { query: { state: on } }),
     repeat: mode => call("PUT", "/me/player/repeat", { query: { state: mode } }),
     transfer: (deviceId, play = true) => call("PUT", "/me/player", { body: { device_ids: [deviceId], play } }),
+    volume: pct => call("PUT", "/me/player/volume", { query: { volume_percent: Math.max(0, Math.min(100, Math.round(pct))) } }),
+    // Start playing: a playlist/album (contextUri, optionally from one song) or a list of songs (uris).
+    playItem: ({ contextUri, offsetUri, uris }) => call("PUT", "/me/player/play", {
+      body: contextUri ? { context_uri: contextUri, ...(offsetUri ? { offset: { uri: offsetUri } } : {}) } : { uris },
+    }),
+
+    // Library (read-only; see SCOPES in auth.js)
+    queue: () => call("GET", "/me/player/queue"),
+    playlists: (offset = 0) => call("GET", "/me/playlists", { query: { limit: 50, offset } }),
+    // Songs of a playlist. Spotify only allows this for playlists you own or collaborate on (others: 403).
+    playlistItems: (id, offset = 0) => call("GET", `/playlists/${encodeURIComponent(id)}/items`, { query: { limit: 50, offset } }),
+    savedAlbums: (offset = 0) => call("GET", "/me/albums", { query: { limit: 50, offset } }),
+    albumTracks: (id, offset = 0) => call("GET", `/albums/${encodeURIComponent(id)}/tracks`, { query: { limit: 50, offset } }),
+    recentlyPlayed: () => call("GET", "/me/player/recently-played", { query: { limit: 30 } }),
   };
 }
