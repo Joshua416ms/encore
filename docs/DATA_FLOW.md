@@ -38,6 +38,31 @@ finger up   ─▶ position → fractions wX, wY of the free space; within 32 px
 resize / rotation / −+ ─▶ same fractions re-applied → the widget stays proportionally in place and on screen
 ```
 
+## 2c. Automatic screen switching (`ui/automode.js`)
+
+```
+playback update ─▶ playing?  yes → on Album art or Lyrics already? stay : switch to Album art
+                             no  → stopped for ≥ autoPhotosAfter minutes? → night ? Clock : Photos
+every 15 s, on wake, on settings change ─▶ same check
+you swipe/tap a dot ─▶ modes.set(…, "user") ─▶ automode waits 30 min (ends early when music starts/stops)
+```
+
+## 2d. Lyrics (`lyrics/lrclib.js`, `ui/lyricsmode.js`) — only when turned on
+
+```
+song changes ─▶ lyrics.update(track): show the cover meanwhile (body.lyrics-none → album-art screen)
+  → cache hit? use it : GET lrclib.net/api/get (title, main artist, album, length)
+  → synced → lines with times · plain → text · 404/instrumental → none (cover stays)
+every 200 ms in Lyrics mode ─▶ position = playback.position() + offset → binary search → highlight + centre line
+```
+
+## 2e. Night mode and time of day (`main.js`, every minute and on wake)
+
+```
+isNight() (schedule, "Always on" or "Off") → <html class="night"> → CSS: red text, darker photos, smaller clock
+periodNow() → morning / afternoon / evening / night → wallByPeriod[period] or the active collection → engine
+```
+
 ## 3. A photo appears (wallpaper engine)
 
 ```
@@ -86,7 +111,8 @@ See [AUTHENTICATION.md](AUTHENTICATION.md).
 | `encore.settings.tab` | `settings.js` | Last open settings tab |
 | `encore.wall.state` | `engine.js` | Current photo, shuffle bag, history, last change time |
 | `standby.app` | `main.js`, `nightstand.js` | Last-used app |
-| IndexedDB `encore-wallpapers` | `library.js` | Collections and images (screen-sized copy + thumbnail + analysis) |
+| IndexedDB `encore-wallpapers` | `library.js` | Collections and images (screen-sized copy + thumbnail + analysis + `hidden` flag) |
+| IndexedDB `encore-lyrics` | `lrclib.js` | Lyrics per Spotify track id (max 200, oldest removed first) |
 | `nightstand*`, IndexedDB `nightstand` | `nightstand.js` | Nightstand settings, weather cache, photos |
 
 All of this stays in the browser on that one device. Nothing is in the repository.

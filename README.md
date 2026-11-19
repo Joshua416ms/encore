@@ -20,6 +20,8 @@ It's a web app you add to the iPad Home Screen. There's no server, no build step
 | Spotify sign-in, live track info, widget | Built and tested with a real account |
 | Photo collections (import from Files), rotation, three display modes | Built and tested in the browser |
 | Nightstand (clock, weather, calendar, photos, night mode) | Built and working |
+| Lyrics (optional, off by default) | Built and tested; community-sourced via LRCLIB |
+| Automatic screen switching, night mode, accent colours, photo extras | Built and tested in the browser |
 | Direct Cosmos account connection | Not possible: Cosmos has no public API. Photos are imported from Files instead |
 
 ## Requirements

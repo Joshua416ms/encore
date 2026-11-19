@@ -63,3 +63,19 @@
   quick flick = mode swipe, not a drag; resizing 80–180% keeps the position fractions; reload restores the position; rotation re-fits and returns.
 - Found and fixed: clock placement depended on an animation frame (never ran in a hidden page) → now immediate.
 - Not tested yet: dragging with a real finger on the iPad.
+
+## 2026-11-19
+
+**Grilled design, then built** (all recommendations accepted; lyrics: cover instead of "no lyrics" text)
+- Lyrics (LRCLIB, off by default, own swipe mode, synced highlight + plain fallback, timing slider, on-device cache).
+- Automatic screen switching; night mode (red, darker photos, smaller clock, cover untouched; brightness via Shortcuts);
+  accent colour from the album art (green fallback); photos: pan & zoom without cropping, collections by time of day,
+  hide photo, photo of the day.
+- Tested: real LRCLIB lookup (58 synced lines), cache, not-found, highlight timing; 12 automatic-switching unit tests;
+  accent from a real cover; night colours with the cover unfiltered; schedule window; pan & zoom limits; hide/restore;
+  time-of-day switching; photo of the day.
+- Bugs found and fixed: duplicate thumbnails (overlapping renders → "ticket"); a quick second Hide found nothing
+  (current photo cleared too early); **race on fast taps** (a failed earlier load removed the newer photo's image →
+  wrongly treated as broken); decode() never settling in a hidden page (fallback after 2.5 s);
+  **refresh-token race between two tabs** signed the user out (now uses the newer token).
+- Not tested yet on the iPad itself; lyrics with real playback (nothing was playing during tests).

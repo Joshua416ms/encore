@@ -38,6 +38,25 @@
 | Test-only `<style>` had no effect | Our own CSP (`style-src 'self'`) blocks injected styles | Computed `transition` was unchanged | Not a bug: the policy works; used the Web Animations API instead |
 | Clock never placed in a corner (hidden page) | Placement waited for an animation frame | Clock's parent was not a corner slot | Place it immediately; re-check on `transitionend` |
 
+| Duplicate thumbnails | Two overlapping async renders both appended | Counted list items after hiding one photo | "Ticket" per render; stale renders stop |
+| Fast taps dropped a good photo | A superseded load's cleanup removed the newer image | Double-tap test; reasoned through the event order | Clean up only your own image (`fg.src === myUrl`) |
+| Signed out of Spotify locally | Two tabs refreshed with the same rotating refresh token | Token missing after tests; traced the only code path that deletes it | Re-read storage before signing out |
+
+## Session 4: 2026-11-19 — grilling, lyrics, automation, night, photos
+
+### Concepts introduced
+- Stress-testing a design with a decision tree ("grilling") before writing code.
+- Reading platform policy (Spotify III.5) and making an explicit, documented risk decision.
+- CORS preflight requests and allowed custom headers; LRC timestamp format; binary search.
+- Race conditions in async code: tickets, "is this still mine?" checks, token rotation across tabs.
+- State machines with time (automatic switching), and unit-testing them with a fake clock.
+
+### Questions you should be able to answer
+18. Why does the lyrics feature carry a policy risk, and what limits the damage if Spotify objects?
+19. What does a CORS preflight check, and why did we test it before building the lyrics client?
+20. Two fast taps on › once made a good photo disappear from rotation. Explain the race in your own words.
+21. Why can two open tabs sign you out of Spotify, and how does the fix avoid it?
+
 ## Session 3: 2026-11-18 — photo display and dragging
 
 ### Concepts introduced

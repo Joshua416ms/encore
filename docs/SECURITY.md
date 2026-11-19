@@ -23,6 +23,9 @@ _Last updated: 2026-11-18. To report a vulnerability, see [/SECURITY.md](../SECU
 | **Reading pixels of remote images** | Yes. Artwork mode samples cover colours | Only possible because Spotify's image server allows it (`Access-Control-Allow-Origin: *`); the image is loaded with `crossOrigin="anonymous"`, so no cookies are sent |
 | **SQL injection** | No | There's no database server or SQL anywhere |
 | **Clickjacking** (page embedded in another site) | Low | Can't be fully blocked on GitHub Pages: `frame-ancestors` only works as a server header, and Pages can't set custom headers. Accepted, low impact |
+| **Lyrics text from LRCLIB** (Injection) | Yes, when lyrics are on | Only string fields are used, length-limited (20,000 chars), shown with `textContent`. The CSP allows exactly one new address (`https://lrclib.net`). No cookies or referrer are sent |
+| **Spotify policy risk (lyrics)** | Accepted by the owner | Policy III.5 may cover lyrics from another service. Worst realistic case: Spotify disables the developer app. Off by default |
+| **Sign-out by a refresh race** | Fixed 2026-11-19 | Spotify rotates refresh tokens. Two open tabs refreshing at once made the slower one get `invalid_grant` and sign out. Now it first checks whether another tab already stored a newer token |
 | **Physical access** | Yes | Anyone with the unlocked iPad controls your playback. Use a passcode and Guided Access |
 | **Secrets in Git history** | Yes, for a public repo | `.gitignore`; no secrets exist in the code; GitHub push protection (enable it) |
 
@@ -36,7 +39,7 @@ Encore's policy (`app/index.html`):
 |---|---|---|
 | `default-src 'self'` | Our own files | Starting rule: everything else is denied |
 | `script-src 'self'` | Only our own `.js` files | No inline scripts, no scripts from other sites. Injected `<script>` won't run |
-| `connect-src` | `accounts.spotify.com`, `api.spotify.com` | Even injected code couldn't send tokens anywhere else |
+| `connect-src` | `accounts.spotify.com`, `api.spotify.com`, `lrclib.net` (lyrics) | Even injected code couldn't send tokens anywhere else |
 | `img-src` | Our files, Spotify image servers, `data:`, `blob:` | Album art loads; tracking images from elsewhere don't |
 | `style-src 'self'` | Only our own CSS file | No injected stylesheets (Google Fonts removed 2026-11-18) |
 | `object-src 'none'`, `base-uri 'none'`, `form-action 'none'` | Nothing | Blocks plug-ins, `<base>` hijacking and form posting elsewhere |

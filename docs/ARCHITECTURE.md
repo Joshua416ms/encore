@@ -43,6 +43,9 @@ The screen is a **photo frame first**. Three display modes are reached by swipin
 | `ui/modes.js` | Current mode, dots, swipe gesture | `settings` (saves `mode`) |
 | `ui/layout.js` | Widget size (CSS variables), free position of the dock (fractions `wX`/`wY`), press-and-hold dragging, +/− size, clock placement, readability tint | `settings` |
 | `ui/nowplaying.js` | Widget contents and Spotify buttons | `playback` |
+| `ui/automode.js` | Automatic screen switching (music → album art, stopped → photos, night → clock; your choice wins for 30 min) | `modes` (via `main`) |
+| `ui/lyricsmode.js` | Lyrics screen: renders lines, highlights the current one; shows the cover when there are none | `lyrics/lrclib.js`, `playback` |
+| `lyrics/lrclib.js` | Looks up lyrics on LRCLIB, parses timestamps, caches results on the device | LRCLIB |
 | `ui/artmode.js` | Full-screen cover + edge-colour fill | receives tracks from `nowplaying` via `main` |
 | `ui/settings.js` | Settings sheet; options built from `SCHEMA`; `DEFAULTS` | `onChange` callback |
 | `ui/photos.js` | Collections list, import, thumbnails | `library`, `importer`, `engine` |
@@ -70,5 +73,9 @@ The screen is a **photo frame first**. Three display modes are reached by swipin
 | Artwork mode: whole cover with a margin (default 9% of the short side) | Spotify forbids cropping/blurring cover art; `vmin` adapts to every iPad and orientation (≈1–1.8 cm) | Sides filled with sampled colours (or black), never a blurred cover |
 | Widget position stored as fractions (`wX`, `wY` from 0 to 1) of the free space | Always on screen; survives resizing and rotation; corners are just (0,0)…(1,1) | Exact pixel position changes slightly when the widget's size changes (it stays proportionally in place) |
 | Dragging needs a 0.4 s hold | Separates "move the widget" from "tap a control" and "swipe between modes" | A deliberate pause before dragging |
+| Lyrics from LRCLIB, off by default | The only free, synced source that works from a browser; Spotify's API has no lyrics | **Accepted risk:** not licensed by publishers, and Spotify Policy III.5 may apply (see SECURITY.md) |
+| Night mode never tints the album cover | Spotify forbids altering cover art | Only the surroundings, text and photos turn red/dark |
+| A web app can't change iPad brightness | Browser limitation | Instructions for an iPad Shortcuts automation instead |
+| Pan & zoom only into the empty space around a photo | Keeps the "never crop" rule while adding motion and burn-in protection | Smaller motion when the photo already fills the screen |
 | Polling Spotify | The Web API has no push updates | Up to ~3 s delay for changes made elsewhere |
 | System font only | Consistent typography; removed the Google Fonts request | — |

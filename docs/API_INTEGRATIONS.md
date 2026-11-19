@@ -32,6 +32,22 @@ or overlaid and has 8px corners; truncated text can be expanded by tapping it; t
 
 **Limits in Development Mode** (since Feb 2026): the app owner needs Premium, and at most 5 approved users per app.
 
+## LRCLIB (lyrics, implemented — off by default)
+
+| | |
+|---|---|
+| Endpoint | `GET https://lrclib.net/api/get?track_name=…&artist_name=…&album_name=…&duration=…` (seconds; must match ±2 s) |
+| Key | None. Apps must identify themselves: Encore sends `Lrclib-Client: Encore (https://github.com/Joshua416ms/encore)` (browsers can't set User-Agent; LRCLIB's CORS allows this header — checked 2026-11-19) |
+| Sent | Song title, **main** artist, album name, length. Nothing else (no cookies: `credentials: "omit"`, no referrer) |
+| Returns | `syncedLyrics` (LRC text with `[mm:ss.xx]` timestamps), `plainLyrics`, `instrumental`; **404** when not found |
+| Limits | About 45–90 requests/min per IP; we look each song up once and cache it (IndexedDB `encore-lyrics`, max 200 songs) |
+| Not cached | Network errors, 429 (busy) and server errors, so they are retried next time |
+| Licensing | **Not documented.** Lyrics are community-contributed; LRCLIB claims no publisher licence |
+
+**Spotify's position** (verified 2026-11-19): Spotify's public Web API has no lyrics. Spotify Developer Policy **III.5**:
+"Do not create any product or service which is integrated with streams or content from another service." Lyrics from
+another service, timed to Spotify playback, may fall under this. The owner accepted this risk for personal use (see SECURITY.md).
+
 ## Open-Meteo (Nightstand weather, implemented)
 
 | Purpose | Address | Key needed |
