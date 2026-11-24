@@ -226,11 +226,6 @@
 <button class="nav next" id="wpNext" type="button" aria-label="Next photo">
   <svg viewBox="0 0 24 24" class="stroke"><path d="M9 5l7 7-7 7"/></svg>
 </button>
-<!-- Hide the current photo from rotation (not deleted; bring it back in Settings › Photos) -->
-<button class="hide-photo" id="hidePhoto" type="button">
-  <svg viewBox="0 0 24 24" class="stroke"><path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.1A9.8 9.8 0 0 1 12 5c5 0 9 4.5 10 7a13 13 0 0 1-3.2 4.2M6.6 6.6A13.4 13.4 0 0 0 2 12c1 2.5 5 7 10 7 1.6 0 3.1-.4 4.4-1.1"/></svg>
-  <span>Hide photo</span>
-</button>
 
 <button class="gear" id="gearBtn" type="button" aria-label="Settings">
   <svg viewBox="0 0 24 24" class="stroke"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/></svg>
@@ -325,92 +320,49 @@
   </div>
 </div>
 
-<!-- ===== Settings ===== -->
+<!-- ===== Settings: one scrolling page of groups (ui/settings.js builds the rows; ui/photos.js the collections) ===== -->
 <aside class="sheet" id="sheet" aria-label="Settings" aria-hidden="true">
   <header class="sheet-head">
     <h2>Settings</h2>
-    <button class="btn ghost tiny" type="button" id="closeSheet">Done</button>
+    <button class="done" type="button" id="closeSheet">Done</button>
   </header>
-  <nav class="tabs" role="tablist" aria-label="Settings sections">
-    <button type="button" role="tab" data-tab="photos" aria-selected="true">Photos</button>
-    <button type="button" role="tab" data-tab="music" aria-selected="false">Music</button>
-    <button type="button" role="tab" data-tab="display" aria-selected="false">Display</button>
-    <button type="button" role="tab" data-tab="account" aria-selected="false">Account</button>
-  </nav>
 
-  <!-- Photos: built by ui/photos.js (collections) + ui/settings.js (rotation rows) -->
-  <section class="tab-panel" data-panel="photos" role="tabpanel">
-    <div class="group">
-      <h3>Collections</h3>
-      <div class="collections" id="collectionList"></div>
-      <div class="newcol">
-        <input id="newCollectionName" maxlength="60" autocomplete="off" placeholder="New collection name, e.g. Film Stills" aria-label="New collection name">
-        <label class="btn tiny" for="newCollectionFiles" tabindex="0" id="newCollectionBtn">Choose photos</label>
-      </div>
-      <input type="file" id="newCollectionFiles" accept="image/*" multiple hidden>
-      <p class="hint" id="importStatus" role="status"></p>
-      <p class="hint">From Cosmos: open a saved image, use <b>Download</b>, and save it to a folder in Files. Then choose those photos here. Cosmos has no public API, so Encore can't sign in to it directly.</p>
+  <h3 class="group-title">Photos</h3>
+  <div class="card">
+    <div class="collections" id="collectionList"></div>
+    <div class="newcol">
+      <input id="newCollectionName" maxlength="60" autocomplete="off" placeholder="New collection name" aria-label="New collection name">
+      <label class="btn tiny" for="newCollectionFiles" tabindex="0" id="newCollectionBtn">Choose photos</label>
     </div>
-    <div class="group" id="activeGroup" hidden>
-      <h3 id="activeTitle">Active collection</h3>
-      <div class="btnrow">
-        <label class="btn ghost tiny" for="addFiles" tabindex="0">Add photos</label>
-        <button class="btn ghost tiny" type="button" id="wpPrevBtn">Previous photo</button>
-        <button class="btn ghost tiny" type="button" id="wpNextBtn">Next photo</button>
-      </div>
-      <input type="file" id="addFiles" accept="image/*" multiple hidden>
-      <div class="thumbs" id="thumbs"></div>
+    <input type="file" id="newCollectionFiles" accept="image/*" multiple hidden>
+    <p class="row-note" id="importStatus" role="status"></p>
+  </div>
+  <div class="card" id="activeGroup" hidden>
+    <div class="active-head">
+      <span id="activeTitle">Showing</span>
+      <label class="btn ghost tiny" for="addFiles" tabindex="0">Add photos</label>
     </div>
-    <div class="group" id="periodGroup">
-      <h3>Collections by time of day</h3>
-      <div id="periodRows"></div>
-      <p class="hint">Times without a collection show your active collection. Night follows the night-mode schedule (Display tab).</p>
-    </div>
-    <div class="group" id="hiddenGroup" hidden>
-      <h3>Hidden photos</h3>
-      <p class="hint">Tap a photo to bring it back into rotation.</p>
-      <div class="thumbs" id="hiddenThumbs"></div>
-    </div>
-    <div class="group"><h3>Rotation</h3><div id="rowsPhotos"></div></div>
-    <p class="hint" id="storageNote"></p>
-  </section>
+    <input type="file" id="addFiles" accept="image/*" multiple hidden>
+    <div class="thumbs" id="thumbs"></div>
+  </div>
+  <div class="card" id="rowsPhotos"></div>
+  <p class="group-note" id="storageNote"></p>
 
-  <!-- Music widget: rows generated from the MUSIC list in ui/settings.js -->
-  <section class="tab-panel" data-panel="music" role="tabpanel" hidden>
-    <div id="rowsMusic"></div>
-    <p class="hint" id="musicNote"></p>
-  </section>
+  <h3 class="group-title">Music widget</h3>
+  <div class="card" id="rowsMusic"></div>
 
-  <section class="tab-panel" data-panel="display" role="tabpanel" hidden>
-    <div id="rowsDisplay"></div>
-    <div class="group">
-      <h3>Tip: dim the real screen at night</h3>
-      <p class="hint">Encore can't change iPad brightness itself. Open the <b>Shortcuts</b> app › <b>Automation</b> › <b>+</b> › <b>Time of Day</b> › 22:00 › <b>Run Immediately</b> › add <b>Set Brightness</b> (e.g. 10%). Make a second automation at 07:00 that sets it back (e.g. 60%).</p>
-    </div>
-  </section>
+  <h3 class="group-title">Screen</h3>
+  <div class="card" id="rowsScreen"></div>
 
-  <section class="tab-panel" data-panel="account" role="tabpanel" hidden>
-    <div class="group">
-      <h3>Spotify</h3>
-      <div class="row"><span>Account</span><span class="value" id="acctName">Not connected</span></div>
-      <div class="row"><span>Playing on</span><span class="value" id="acctDevice">No active device</span></div>
-      <div class="row col">
-        <span>Devices</span>
-        <div class="devices" id="deviceList"><p class="hint">Open Spotify on a phone, computer or speaker to see it here.</p></div>
-        <button class="btn ghost tiny" type="button" id="refreshDevices">Refresh devices</button>
-      </div>
-      <div class="row col">
-        <span>Redirect URI</span>
-        <span class="copyrow"><code id="redirectUri2">…</code><button class="btn ghost tiny" type="button" id="copyRedirect2">Copy</button></span>
-      </div>
-      <div class="row"><span>Client ID</span><span class="value mono" id="clientIdShown">—</span></div>
-      <div class="row">
-        <button class="btn tiny" type="button" id="connectFromSettings">Connect Spotify</button>
-        <button class="btn danger tiny" type="button" id="disconnectBtn">Disconnect Spotify</button>
-      </div>
-      <p class="hint">Disconnect removes Encore's sign-in from this device. To also remove Encore's access on Spotify's side, open <a href="https://www.spotify.com/account/apps/" target="_blank" rel="noopener noreferrer">spotify.com/account/apps</a> and choose Remove access.</p>
+  <h3 class="group-title">Spotify</h3>
+  <div class="card">
+    <div class="row"><span class="row-label">Account</span><span class="value" id="acctName">Not connected</span></div>
+    <div class="row">
+      <button class="row-btn" type="button" id="connectFromSettings">Connect Spotify</button>
+      <button class="row-btn danger" type="button" id="disconnectBtn">Disconnect</button>
     </div>
-  </section>
+  </div>
+  <p class="group-note">Disconnect signs Encore out on this iPad only.</p>
 </aside>
 
 <!-- ===== Nightstand sheet: swipe UP slides it up over Encore, swipe DOWN inside it slides it away.

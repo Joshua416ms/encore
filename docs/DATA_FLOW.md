@@ -37,8 +37,8 @@ Nightstand: swipe DOWN (touch events, because its pager scrolls natively) ─▶
 above everything but the sleep screen. `:root.ns-up` puts it up: it slides from the bottom in .45 s `var(--ease)` once
 the swipe ends (a fade with Reduce Motion). `setNightstand(up)` saves `standby.app`, makes the rest of Encore `inert`,
 rests Encore's wallpaper slideshow while covered, and posts `{type:"encore", shown, asleep}` to the iframe, which then
-rests its clock (once a minute) and slideshow while down and lets go of the screen while asleep. Encore keeps polling
-Spotify underneath, so Auto mode still moves to Player out of sight. Embedded, Nightstand runs no sleep timer of its
+rests its clock (once a minute) while down and lets go of the screen while asleep.
+Embedded, Nightstand runs no sleep timer of its
 own (Encore's sleep screen covers the sheet) and doesn't write `standby.app`. Opened on its own (`nightstand/`, old
 bookmarks) it works as before: swipe down goes to `../`. On start, `route.js` adds `ns-up` before the first paint when
 `standby.app` is "nightstand", so the Home Screen icon reopens with the sheet already up, no slide.
@@ -59,13 +59,20 @@ finger up   ─▶ position → fractions wX, wY of the free space; within 32 px
 resize / rotation / −+ ─▶ same fractions re-applied → the widget stays proportionally in place and on screen
 ```
 
-## 2c. Automatic screen switching (`ui/automode.js`)
+## 2c. Settings on start, and the shared Keep screen on (`main.js`, `ui/settings.js`, `nightstand.js`)
 
 ```
-playback update ─▶ playing?  yes → on Album art or Lyrics already? stay : switch to Album art
-                             no  → stopped for ≥ autoPhotosAfter minutes? → night ? Clock : Photos
-every 15 s, on wake, on settings change ─▶ same check
-you swipe/tap a dot ─▶ modes.set(…, "user") ─▶ automode waits 30 min (ends early when music starts/stops)
+Encore starts ─▶ read encore.settings → delete REMOVED keys (old options) → wallSecs not a WALL_STOPS step? → 300
+              → FORCED values written over the rest (options that are no longer settings) → saved at once
+Nightstand starts ─▶ delete its old keys (sec, monday, night, from, to, interval) → delete IndexedDB "nightstand"
+                  → saved page clamped to 0–2
+
+Keep screen on = encore.settings.wakeOn, one value for both apps:
+Encore's switch     ─▶ settings.wakeOn → save → wake lock on/off
+                       (Nightstand reads encore.settings again each time it is shown)
+Nightstand's switch ─▶ writes wakeOn into encore.settings (Encore's other keys kept)
+                    ─▶ postMessage {type:"nightstand", wakeOn} → Encore: settings.wakeOn = wakeOn → save
+                       → wake lock on/off → redraws its own switch if its sheet is open
 ```
 
 ## 2d. Lyrics (`lyrics/lrclib.js`, `ui/lyricsmode.js`) — only when turned on
@@ -81,11 +88,11 @@ song changes ─▶ lyrics.update(track): keep showing the old lyrics (frozen) w
 every 200 ms in Lyrics mode ─▶ position = playback.position() + offset → binary search → highlight + centre line
 ```
 
-## 2e. Night mode and time of day (`main.js`, every minute and on wake)
+## 2e. Night mode (`main.js`, every minute and on wake)
 
 ```
-isNight() (schedule, "Always on" or "Off") → <html class="night"> → CSS: red text, darker photos, smaller clock
-periodNow() → morning / afternoon / evening / night → wallByPeriod[period] or the active collection → engine
+isNight() (Schedule 22:00–07:00, On or Off) → <html class="night"> → CSS: red text and accent, darker photos
+Nightstand has no night mode: it never turns red.
 ```
 
 ## 3. A photo appears (wallpaper engine)
@@ -100,7 +107,7 @@ engine.setCollection(id) → library.imageKeys(id) → pick next (shuffle bag, o
     the new slide is at opacity 1). If that can't be confirmed, the old images stay until the slide is reused.
   → onShow({lum, …}) → main.js → layout.setWallpaperInfo (darker widget/clock over bright corners)
                                 → photos.markCurrent (thumbnail highlight)
-Timer: next change = last change + interval; paused while the app is hidden.
+Timer: next change = last change + wallSecs (30 s – 5 min); paused while the app is hidden.
 ```
 
 ## 4. Importing photos
@@ -132,12 +139,11 @@ See [AUTHENTICATION.md](AUTHENTICATION.md).
 | `encore.spotify.token` | `auth.js` | Access token, refresh token, expiry, scopes |
 | `encore.spotify.verifier`, `encore.spotify.state` | `auth.js` | Temporary sign-in values; deleted after sign-in |
 | `encore.spotify.clientId` | `main.js` | Your Client ID |
-| `encore.settings` | `main.js` (debounced 150 ms) | Every option: mode, widget sizes, widget position (`wPos` + fractions `wX`/`wY`), clock, photo look and rotation, album-art margin |
-| `encore.settings.tab` | `settings.js` | Last open settings tab |
+| `encore.settings` | `main.js` (debounced 150 ms) | Every option: mode, widget size and position (`wScale`, `wPos` + fractions `wX`/`wY`), photo rotation and look, album cover, night mode, Keep screen on (`wakeOn`, also written by `nightstand.js`) |
 | `encore.wall.state` | `engine.js` | Current photo, shuffle bag, history, last change time |
 | `standby.app` | `main.js` (and `nightstand.js` when opened on its own) | Was the Nightstand sheet up last ("nightstand" / "encore") |
-| IndexedDB `encore-wallpapers` | `library.js` | Collections and images (screen-sized copy + thumbnail + analysis + `hidden` flag) |
+| IndexedDB `encore-wallpapers` | `library.js` | Collections and images (screen-sized copy + thumbnail + analysis) |
 | IndexedDB `encore-lyrics` | `lrclib.js` | Lyrics per Spotify track id (max 200, oldest removed first) |
-| `nightstand*`, IndexedDB `nightstand` | `nightstand.js` | Nightstand settings, weather cache, photos |
+| `nightstand`, `nightstand-page`, `nightstand-wx` | `nightstand.js` | Nightstand settings (clock, accent, weather place and units), last page, weather cache |
 
 All of this stays in the browser on that one device. Nothing is in the repository.

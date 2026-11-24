@@ -4,13 +4,12 @@
 //                                            └─▶ photos.markCurrent     (highlights the thumbnail)
 //   ui/settings ──onChange(key)──▶ main ──▶ layout.apply / engine.reschedule / clock
 //   spotify/playback ──onChange(state)──▶ main ──▶ nowPlaying.render (the widget's contents)
-//                                             └─▶ autoMode.onPlayback  (picks the screen: album art / photos / clock)
 //   nowPlaying ──onTrack(track)──▶ main ──▶ artMode.update (cover; reports its accent colour back)
 //                                       └─▶ player.update  (Player screen: cover and song text)
 //                                       └─▶ lyrics.update  (LRCLIB lyrics, only when turned on)
 //   modes ──onVertical("down"|"up")──▶ main ──▶ library.open/close (Spotify screen) or slide up the Nightstand sheet
 //   Nightstand iframe ──postMessage {close}──▶ main ──▶ slide the sheet down; main ──{shown, asleep}──▶ Nightstand
-//   every minute ──▶ night mode on/off, collection for this time of day
+//   every minute ──▶ night mode on/off
 //   sleep (js/sleep.js) ──onSleep──▶ main ──▶ black sleep screen, stop polling, let the iPad lock
 //
 // Components never reach into each other directly, so each can be changed or replaced on its own.
@@ -19,7 +18,7 @@ import { redirectUri, beginLogin, handleRedirect, isConnected, logout, canSignIn
 import { createClient } from "./spotify/client.js";
 import { createPlayback } from "./spotify/playback.js";
 import { createNowPlaying } from "./ui/nowplaying.js";
-import { createSettings, DEFAULTS, FIXED } from "./ui/settings.js";
+import { createSettings, DEFAULTS, FORCED, REMOVED, WALL_STOPS } from "./ui/settings.js";
 import { createLayout } from "./ui/layout.js";
 import { createPhotos } from "./ui/photos.js";
 import { createWallpaperEngine } from "./wallpapers/engine.js";
@@ -27,9 +26,7 @@ import { createModes } from "./ui/modes.js";
 import { createArtMode } from "./ui/artmode.js";
 import { createPlayerMode } from "./ui/playermode.js";
 import { createLyricsMode } from "./ui/lyricsmode.js";
-import { createAutoMode } from "./ui/automode.js";
 import { createLibrary } from "./ui/library.js";
-import { getCollection } from "./wallpapers/library.js";
 import { createSleepTimer } from "./sleep.js";
 import { createSleepButton } from "./ui/sleepbutton.js";
 
@@ -40,12 +37,16 @@ const ls = {
 };
 
 /* ---------- settings (persisted in localStorage as one JSON object) ---------- */
-const settings = { ...DEFAULTS };
-try { Object.assign(settings, JSON.parse(ls.get("encore.settings") || "{}")); } catch {}
+let saved = {};
+try { saved = JSON.parse(ls.get("encore.settings") || "{}") || {}; } catch {}
+const settings = { ...DEFAULTS, ...saved };
 let saveTimer;
 const save = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => ls.set("encore.settings", JSON.stringify(settings)), 150); };
-// Removed settings (widget width, height, padding, blur, corner radius): forget any saved values for good.
-if (Object.keys(FIXED).some(k => k in settings)) { for (const k of Object.keys(FIXED)) delete settings[k]; save(); }
+// Settings removed 2026-11-23 ("way too many settings"): old keys are forgotten, the rest are always FORCED.
+if (!WALL_STOPS.includes(settings.wallSecs)) settings.wallSecs = 300;
+for (const k of REMOVED) delete settings[k];
+Object.assign(settings, FORCED);
+ls.set("encore.settings", JSON.stringify(settings));
 const clientId = () => (ls.get("encore.spotify.clientId") || SPOTIFY_CLIENT_ID || "").trim();
 
 /* ---------- toast ---------- */
@@ -70,7 +71,7 @@ function tickClock() {
 }
 setInterval(() => { if (!document.hidden) tickClock(); }, 5000);
 
-/* ---------- night mode + time of day ---------- */
+/* ---------- night mode ---------- */
 const toMin = t => { const [h, m] = String(t).split(":").map(Number); return (h || 0) * 60 + (m || 0); };
 function isNight(d = new Date()) {
   if (settings.nightMode === "on") return true;
@@ -80,19 +81,11 @@ function isNight(d = new Date()) {
 }
 function applyNight() { document.documentElement.classList.toggle("night", isNight()); }
 
-// Which part of the day it is, for "collections by time of day". Night follows the night-mode schedule.
-function periodNow(d = new Date()) {
-  if (settings.nightMode !== "off" && isNight(d)) return "night";
-  const h = d.getHours();
-  return h >= 6 && h < 12 ? "morning" : h >= 12 && h < 18 ? "afternoon" : h >= 18 && h < 22 ? "evening" : "night";
-}
-
-// Shows the right collection: the one assigned to this time of day, otherwise your active collection.
+// Shows your active collection (switches the engine only when it changed, or when forced).
 let syncing = Promise.resolve();
 function syncCollection(force = false) {
   syncing = syncing.then(async () => {
-    let want = (settings.wallByPeriod || {})[periodNow()] || settings.wallCollection;
-    if (want && want !== settings.wallCollection && !(await getCollection(want).catch(() => null))) want = settings.wallCollection;
+    const want = settings.wallCollection;
     if (force || want !== engine.collection) { try { await engine.setCollection(want); } catch { /* storage unavailable */ } }
     updateEmpty();
   });
@@ -130,7 +123,6 @@ const playback = createPlayback(client, (state, err) => {
   nowPlaying.render(state, err);
   player.render(state, err);
   library.render(state);
-  if (!err) autoMode.onPlayback(state);
   if (settingsUI.isOpen()) settingsUI.sync();
 });
 
@@ -175,38 +167,25 @@ const modes = createModes({
   },
   onModeChange(mode, source, requested) {
     document.body.classList.remove("ui");
-    if (source === "user") autoMode.onUserChoice();      // you chose: automatic switching steps back for 30 min
     if (source === "user" || mode !== "artwork") returnToLyrics = false;
     if (requested === "lyrics" && mode === "artwork" && settings.lyricsOn) returnToLyrics = true;
     if (mode === "lyrics") lyrics.refresh();
   },
 });
-const autoMode = createAutoMode({ settings, modes, isNight });
 
-/* ---------- hide the current photo ---------- */
-$("hidePhoto").addEventListener("click", async e => {
-  e.stopPropagation();
-  if (await engine.hideCurrent()) toast("Photo hidden. Bring it back in Settings › Photos.");
-  updateEmpty();
-});
-
-const WALL_KEYS = ["wallInterval", "wallPaused", "wallOrder"];
+const WALL_KEYS = ["wallSecs", "wallOrder"];
 const settingsUI = createSettings({
-  settings, client, playback, redirect: redirectUri(), clientId, isConnected, toast,
-  onChange(key) {
+  settings, client, isConnected,
+  onChange(key, value) {
+    settings[key] = value;
     save();
-    layout.apply({ animate: key === "wPos" });   // choosing a corner glides the widget there
-    if (key === "h24") tickClock();
+    layout.apply();
     if (WALL_KEYS.includes(key)) engine.reschedule();
-    if (key === "wallInterval") syncCollection(true);                 // e.g. switching to "photo of the day"
     if (key === "kbOn" || key === "kbStrength") syncCollection(true); // re-show so the new motion applies now
-    if (key === "accent") applyAccent();
-    if (key === "lyricsOn") { modes.refresh(); lyrics.update(lastTrack); }
-    if (key === "nightMode" || key === "nightFrom" || key === "nightTo") { applyNight(); syncCollection(); autoMode.evaluate(); }
-    if (key === "autoMode" || key === "autoPhotosAfter") autoMode.evaluate();
+    if (key === "nightMode") applyNight();
     if (key === "wakeOn") { if (wakeWanted()) requestWake(); else releaseWake(); }
   },
-  onTab(name) { if (name === "photos") photos.render(); else photos.release(); },
+  onOpen(open) { if (open) photos.render(); else photos.release(); },
   onConnect: () => openConnect(),
   onDisconnect() { logout(); playback.stop(); nowPlaying.setPremiumBlocked(false); library.close(); library.reset(); setConnected(false); },
 });
@@ -215,7 +194,7 @@ const settingsUI = createSettings({
 function setConnected(on) {
   $("widget").classList.toggle("disconnected", !on);
   $("widgetConnect").hidden = on;
-  if (!on) { artMode.update(null, false); player.update(null, false); player.render(null); lyrics.update(null); autoMode.onPlayback(null); }
+  if (!on) { artMode.update(null, false); player.update(null, false); player.render(null); lyrics.update(null); }
   if (on && !document.hidden) playback.start();
   if (!on) playback.stop();
 }
@@ -232,7 +211,6 @@ async function copyRedirect(codeEl) {
   }
 }
 $("copyRedirect").onclick = () => copyRedirect($("redirectUri"));
-$("copyRedirect2").onclick = () => copyRedirect($("redirectUri2"));
 
 function openConnect(error) {
   $("connect").hidden = false;
@@ -262,7 +240,7 @@ $("connectBtn").addEventListener("click", connect);
 $("clientId").addEventListener("keydown", e => { if (e.key === "Enter") connect(); });
 
 /* ---------- empty state ---------- */
-$("openPhotos").addEventListener("click", e => { e.stopPropagation(); settingsUI.open("photos"); });
+$("openPhotos").addEventListener("click", e => { e.stopPropagation(); settingsUI.open(); });
 
 /* ---------- photo navigation: ‹ › buttons (after a tap) and the ↑ ↓ keys. Swipes change display modes. ---------- */
 $("wpPrev").addEventListener("click", e => { e.stopPropagation(); engine.prev(); showUI(); });
@@ -352,7 +330,7 @@ document.addEventListener("visibilitychange", () => {
     if (asleep) return;                                  // stays black until you tap
     requestWake(); if (!nsUp()) engine.start();
     layout.apply();   // the iPad may have rotated while the app was in the background: re-fit the widget
-    applyNight(); syncCollection(); autoMode.evaluate();   // time has passed: night / time of day may have changed
+    applyNight();                                        // time has passed: night may have begun or ended
     if (isConnected()) playback.start();
   } else {
     engine.stop(); playback.stop();
@@ -378,7 +356,7 @@ function makeTouchIcon() {
 /* ---------- Nightstand sheet ----------
    Nightstand is an iframe (nightstand/?embed=1) loaded at start and kept on top of Encore. Swipe UP here → it slides up
    from the bottom (CSS :root.ns-up); swipe DOWN in Nightstand → it posts {type:"nightstand", close:true} and slides
-   back down. Encore keeps running underneath (Auto mode still moves to Player when music starts), but its wallpaper
+   back down. Encore keeps running underneath, but its wallpaper
    slideshow rests while covered, and Nightstand rests its clock and slideshow while it is down ({shown}).
    standby.app remembers which one was up, so the Home Screen icon reopens it (route.js). */
 const nsFrame = $("nsFrame");
@@ -406,13 +384,22 @@ function setNightstand(up) {
 function goNightstand() { setNightstand(true); }
 window.addEventListener("message", e => {
   if (e.source !== nsFrame.contentWindow || e.origin !== location.origin) return;
-  if (e.data && e.data.type === "nightstand" && e.data.close && nsUp()) setNightstand(false);
+  if (!e.data || e.data.type !== "nightstand") return;
+  if (e.data.close && nsUp()) setNightstand(false);
+  // Keep screen on is one shared setting (encore.settings.wakeOn): Nightstand changed it, so adopt it here too,
+  // or Encore's next save would write its stale value back.
+  if (typeof e.data.wakeOn === "boolean") {
+    settings.wakeOn = e.data.wakeOn;
+    save();
+    if (wakeWanted()) requestWake(); else releaseWake();
+    settingsUI.refresh();
+  }
 });
 nsFrame.addEventListener("load", tellNightstand);         // it may load after start() ran
 
 /* ---------- start ---------- */
-/* ---------- every minute: night mode and the time-of-day collection ---------- */
-setInterval(() => { if (!document.hidden) { applyNight(); syncCollection(); } }, 60000);
+/* ---------- every minute: night mode ---------- */
+setInterval(() => { if (!document.hidden) applyNight(); }, 60000);
 
 (async function start() {
   applyNight();
@@ -430,8 +417,7 @@ setInterval(() => { if (!document.hidden) { applyNight(); syncCollection(); } },
   else if (isConnected() && id) { setConnected(true); if (result && result.ok) toast("Spotify connected"); }
   else setConnected(false);
 
-  await syncCollection(true);   // the collection for this time of day (or your active one)
+  await syncCollection(true);   // your active collection
   if (!nsUp()) engine.start();
   updateEmpty();
-  autoMode.evaluate();
 })();

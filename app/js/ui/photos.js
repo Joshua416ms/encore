@@ -1,8 +1,6 @@
-// Photos tab: create collections from picked files, choose which one is shown, browse its photos.
+// Photos group of the settings sheet: create collections from picked files, choose which one is shown, browse its photos.
 // Talks to wallpapers/library.js (storage), wallpapers/importer.js (processing) and the engine (display).
-import { listCollections, createCollection, deleteCollection, getImage, images, usage, setHidden } from "../wallpapers/library.js";
-
-export const PERIODS = [["morning", "Morning (6–12)"], ["afternoon", "Afternoon (12–18)"], ["evening", "Evening (18–22)"], ["night", "Night"]];
+import { listCollections, createCollection, deleteCollection, getImage, images, usage } from "../wallpapers/library.js";
 import { importFiles } from "../wallpapers/importer.js";
 
 const $ = id => document.getElementById(id);
@@ -49,30 +47,15 @@ export function createPhotos({ settings, save, engine, toast, onCollectionChange
       list.append(row);
     }
 
-    renderPeriods(cols);
-
     const active = cols.find(c => c.id === settings.wallCollection);
     const all = active ? await images(active.id) : [];
     if (mine !== renderTicket) return;
     $("activeGroup").hidden = !active;
-    $("hiddenGroup").hidden = true;
     if (active) {
       $("activeTitle").textContent = `Showing: ${active.name}`;
-      const grid = $("thumbs"), hiddenGrid = $("hiddenThumbs");
+      const grid = $("thumbs");
       grid.textContent = "";
-      hiddenGrid.textContent = "";
-      for (const rec of all.filter(r => r.hidden)) {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.setAttribute("aria-label", "Bring this photo back into rotation");
-        const img = document.createElement("img");
-        img.alt = ""; img.loading = "lazy"; img.src = track(rec.thumb);
-        btn.append(img);
-        btn.addEventListener("click", async () => { await setHidden(rec.key, false); await engine.refresh(); onCollectionChange && onCollectionChange(); render(); });
-        hiddenGrid.append(btn);
-      }
-      $("hiddenGroup").hidden = !hiddenGrid.children.length;
-      for (const rec of all.filter(r => !r.hidden)) {
+      for (const rec of all) {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.dataset.key = rec.key;
@@ -88,35 +71,8 @@ export function createPhotos({ settings, save, engine, toast, onCollectionChange
 
     const u = await usage();
     $("storageNote").textContent = u && u.usage != null
-      ? `Photos are stored only on this device (${(u.usage / 1048576).toFixed(0)} MB used). They are never uploaded.`
-      : "Photos are stored only on this device. They are never uploaded.";
-  }
-
-  // One dropdown per time of day: "Active collection" (default) or a specific collection.
-  function renderPeriods(cols) {
-    const box = $("periodRows");
-    box.textContent = "";
-    settings.wallByPeriod = settings.wallByPeriod || {};
-    for (const [key, label] of PERIODS) {
-      const row = document.createElement("div");
-      row.className = "row";
-      const l = document.createElement("label");
-      l.htmlFor = "period-" + key; l.textContent = label;
-      const sel = document.createElement("select");
-      sel.id = "period-" + key;
-      const def = document.createElement("option");
-      def.value = ""; def.textContent = "Active collection";
-      sel.append(def);
-      for (const c of cols) { const o = document.createElement("option"); o.value = c.id; o.textContent = c.name; sel.append(o); }
-      sel.value = cols.some(c => c.id === settings.wallByPeriod[key]) ? settings.wallByPeriod[key] : "";
-      sel.addEventListener("change", () => {
-        settings.wallByPeriod = { ...settings.wallByPeriod, [key]: sel.value || null };
-        save();
-        onCollectionChange && onCollectionChange();
-      });
-      row.append(l, sel);
-      box.append(row);
-    }
+      ? `Stored only on this iPad, never uploaded (${(u.usage / 1048576).toFixed(0)} MB).`
+      : "Stored only on this iPad, never uploaded.";
   }
 
   function button(text, cls, onClick) {
@@ -129,7 +85,7 @@ export function createPhotos({ settings, save, engine, toast, onCollectionChange
   async function activate(id) {
     settings.wallCollection = id;
     save();
-    // main.js decides what is shown now (a time-of-day collection may take priority) and switches the engine.
+    // main.js switches the engine to it.
     onCollectionChange && await onCollectionChange(true);
     render();
   }
@@ -195,9 +151,6 @@ export function createPhotos({ settings, save, engine, toast, onCollectionChange
   // Labels act as buttons for the hidden file inputs; make them work with the keyboard too.
   document.querySelectorAll('label[for="newCollectionFiles"], label[for="addFiles"]').forEach(l =>
     l.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $(l.htmlFor).click(); } }));
-
-  $("wpPrevBtn").addEventListener("click", () => engine.prev());
-  $("wpNextBtn").addEventListener("click", () => engine.next());
 
   return {
     render,

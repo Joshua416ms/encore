@@ -5,9 +5,7 @@
 //
 // Why not decode the next photo minutes in advance? It would keep a third full-size photo in memory all the time,
 // and decoding just before the fade already hides all loading. So we don't.
-import { imageKeys, getImage, setHidden } from "./library.js";
-
-const todayKey = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+import { imageKeys, getImage } from "./library.js";
 
 const STATE_KEY = "encore.wall.state";
 
@@ -157,40 +155,17 @@ export function createWallpaperEngine({ layers: [a, b], getSettings, onShow }) {
     if (record && st.current && st.current !== key) st.history = [...(st.history || []), st.current].slice(-50);
     st.current = key;
     st.changedAt = Date.now();
-    st.day = todayKey();
     persist();
     onShow({ key, lum: rec.lum, w: rec.w, h: rec.h, index: keys.indexOf(key), count: keys.length });
   }
 
-  // wallInterval: minutes between photos; 0 = only when you swipe/tap; -1 = photo of the day (changes at midnight).
+  // wallSecs: seconds between photos (one of WALL_STOPS in ui/settings.js).
   function schedule() {
     clearTimeout(timer);
     const s = getSettings();
-    if (!running || s.wallPaused || !s.wallInterval || keys.length < 2) return;
-    if (s.wallInterval < 0) {
-      if (st.day && st.day !== todayKey()) { timer = setTimeout(next, 500); return; }   // a new day began while away
-      const now = new Date(), midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5);
-      timer = setTimeout(next, midnight - now);
-      return;
-    }
-    const due = (st.changedAt || 0) + s.wallInterval * 60000;
+    if (!running || !s.wallSecs || keys.length < 2) return;
+    const due = (st.changedAt || 0) + s.wallSecs * 1000;
     timer = setTimeout(next, Math.max(1000, due - Date.now()));
-  }
-
-  // Hide the photo on screen from rotation (it stays in the collection, marked hidden) and move on.
-  async function hideCurrent() {
-    const k = st.current;
-    if (!k) return null;
-    await setHidden(k, true);
-    keys = keys.filter(x => x !== k);
-    st.bag = (st.bag || []).filter(x => x !== k);
-    st.history = (st.history || []).filter(x => x !== k);
-    // st.current keeps pointing at the photo still on screen until the next one has loaded (show() updates it).
-    // Found in testing: clearing it early meant a quick second "Hide" found nothing to hide.
-    if (!keys.length) { st.current = null; persist(); await show(null); return k; }
-    await show(pickNext(), { record: false });
-    schedule();
-    return k;
   }
 
   async function next() {
@@ -218,8 +193,8 @@ export function createWallpaperEngine({ layers: [a, b], getSettings, onShow }) {
     st.bag = (st.bag || []).filter(k => keys.includes(k));
     st.history = (st.history || []).filter(k => keys.includes(k));
     if (!keys.length) { st.current = null; persist(); await show(null); return; }
-    // Same photo as last time the app was open? (For "photo of the day", only if it's still the same day.)
-    const resuming = keys.includes(st.current) && !(getSettings().wallInterval < 0 && st.day !== todayKey());
+    // Same photo as last time the app was open?
+    const resuming = keys.includes(st.current);
     const resume = resuming ? st.current : pickNext();
     const changedAt = st.changedAt;
     await show(resume, { record: false });
@@ -230,7 +205,7 @@ export function createWallpaperEngine({ layers: [a, b], getSettings, onShow }) {
   return {
     setCollection,
     refresh: () => setCollection(collection),
-    next, prev, hideCurrent,
+    next, prev,
     showKey: async k => { await show(k); schedule(); },
     start() { running = true; schedule(); },
     stop() { running = false; clearTimeout(timer); },

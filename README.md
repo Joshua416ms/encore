@@ -65,6 +65,13 @@ Your sign-in is stored only in your own browser. Nobody who downloads this code 
 The workflow in `.github/workflows/pages.yml` publishes the `app/` folder. In the repository, go to **Settings → Pages**, set
 **Source** to **GitHub Actions**, then push a change to `app/`. Add the resulting address as a Redirect URI in the Spotify dashboard.
 
+## Open automatically when charging
+
+1. Open the Encore home page in **Safari**, tap **Share**, then **Add to Home Screen**. The icon reopens whichever app you used last.
+2. Open the **Shortcuts** app, go to **Automation**, tap **+**, choose **Charger** and **Is Connected**.
+3. Set it to **Run Immediately**, add the **Open App** action, and pick **Encore**.
+4. Turn the iPad on its side. Swipe left and right to change views; tap to show the controls.
+
 ## Documentation
 
 How it works, step by step, is in [`docs/`](docs/). Start with [ARCHITECTURE.md](docs/ARCHITECTURE.md).

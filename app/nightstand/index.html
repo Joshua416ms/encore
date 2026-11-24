@@ -22,7 +22,6 @@
     <div class="big shift" id="bigWrap">
       <div class="date" id="bigDate">Wednesday, November 18</div>
       <div class="time" aria-live="off"><span class="h" id="bigH">10</span><span class="colon" id="colon">:</span><span class="m" id="bigM">42</span><span class="ampm" id="bigAP">PM</span></div>
-      <div class="secbar" id="secbar"><i id="secFill"></i></div>
     </div>
   </section>
 
@@ -60,21 +59,9 @@
       </div>
     </div>
   </section>
-
-  <section class="page photo" id="p-photo" aria-label="Photos">
-    <img id="imgA" alt="">
-    <img id="imgB" alt="">
-    <div class="tint"></div>
-    <div class="photo-clock shift" id="photoWrap"><div class="pt" id="photoTime">10:42</div><div class="pd" id="photoDate">Wednesday, November 18</div></div>
-    <div class="photo-empty">
-      <h2>Your photos</h2>
-      <p>Pick a few favorites and they'll fade through here with the time on top. They stay on this iPad and are never uploaded.</p>
-      <label class="btn" for="photoInput" tabindex="0">Add photos</label>
-    </div>
-  </section>
 </main>
 
-<div class="dots" id="dots" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i></div>
+<div class="dots" id="dots" aria-hidden="true"><i class="on"></i><i></i><i></i></div>
 
 <div class="controls" id="controls">
   <button class="iconbtn" id="fsBtn" aria-label="Full screen" hidden>
@@ -86,49 +73,30 @@
 </div>
 
 <aside class="sheet" id="sheet" aria-label="Settings">
-  <header><h2>Settings</h2><button class="iconbtn" id="closeBtn" aria-label="Close settings"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+  <header class="sheet-head"><h2>Settings</h2><button class="iconbtn" id="closeBtn" aria-label="Close settings"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
 
-  <h3>Clock</h3>
-  <div class="row"><label for="set24">24-hour time</label><input class="switch" type="checkbox" id="set24"></div>
-  <div class="row"><label for="setSec">Seconds bar</label><input class="switch" type="checkbox" id="setSec"></div>
-  <div class="row"><label for="setWeek">Week starts on Monday</label><input class="switch" type="checkbox" id="setWeek"></div>
+  <h3 class="group-title">Clock</h3>
+  <div class="card">
+    <div class="row"><label class="row-label" for="set24">24-hour time</label><input class="switch" type="checkbox" id="set24"></div>
+  </div>
 
-  <h3>Accent color</h3>
-  <div class="swatches" id="swatches"></div>
+  <h3 class="group-title">Accent color</h3>
+  <div class="card"><div class="swatches" id="swatches"></div></div>
 
-  <h3>Night mode</h3>
-  <div class="row"><label for="setNight">Red night display</label>
-    <select id="setNight"><option value="auto">On a schedule</option><option value="on">Always on</option><option value="off">Off</option></select></div>
-  <div class="row"><label for="setFrom">From</label><input type="time" id="setFrom"></div>
-  <div class="row"><label for="setTo">Until</label><input type="time" id="setTo"></div>
-  <p class="note">Everything turns dim red so it won't light up a dark bedroom. Lower the iPad's brightness at night as well.</p>
+  <h3 class="group-title">Weather</h3>
+  <div class="card">
+    <div class="row"><span class="row-label">Location</span><span class="value" id="locLabel">Not set</span></div>
+    <form class="row locform" id="locForm"><input id="locInput" type="search" placeholder="Search for a city" autocomplete="off" aria-label="City name"><button class="seg-btn" type="submit">Search</button></form>
+    <div class="locresults" id="locResults"></div>
+    <div class="row"><button class="row-btn" type="button" id="locHere">Use my location</button></div>
+    <div class="row"><span class="row-label" id="unitsLabel">Temperature</span>
+      <div class="seg" id="setUnits" role="radiogroup" aria-labelledby="unitsLabel"><button type="button" role="radio" data-v="F">°F</button><button type="button" role="radio" data-v="C">°C</button></div></div>
+  </div>
 
-  <h3>Weather</h3>
-  <div class="row"><span id="locLabel">No location set</span></div>
-  <form class="locform" id="locForm"><input id="locInput" type="search" placeholder="City name" autocomplete="off" aria-label="City name"><button class="btn" type="submit">Search</button></form>
-  <div class="locresults" id="locResults"></div>
-  <div class="btnrow"><button class="btn ghost" type="button" id="locHere">Use my location</button></div>
-  <div class="row"><label for="setUnits">Temperature</label><select id="setUnits"><option value="F">Fahrenheit (°F)</option><option value="C">Celsius (°C)</option></select></div>
-  <p class="note">Forecasts come from Open-Meteo, a free weather service, and refresh every 15 minutes. Only your location is sent to it.</p>
-
-  <h3>Photos</h3>
-  <div class="row"><span id="photoCount">No photos added</span><label class="btn ghost" for="photoInput" tabindex="0">Add</label></div>
-  <div class="row"><label for="setInterval">Change photo every</label>
-    <select id="setInterval"><option value="15">15 seconds</option><option value="60">1 minute</option><option value="300">5 minutes</option><option value="900">15 minutes</option></select></div>
-  <div class="btnrow"><button class="btn ghost" id="clearPhotos" type="button">Remove all photos</button><span class="note" id="clearConfirm" hidden></span></div>
-  <input type="file" id="photoInput" accept="image/*" multiple hidden>
-
-  <h3>Keep the screen on</h3>
-  <div class="status" id="wakeStatus"><i></i><span>Checking…</span></div>
-  <p class="note" id="wakeNote">Tap the screen once after opening Nightstand so the iPad stays awake.</p>
-
-  <h3>Open automatically when charging</h3>
-  <ol class="steps">
-    <li>Open the Encore home page in <b>Safari</b>, tap <b>Share</b>, then <b>Add to Home Screen</b>. The icon reopens whichever app you used last.</li>
-    <li>Open the <b>Shortcuts</b> app, go to <b>Automation</b>, tap <b>+</b>, choose <b>Charger</b> and <b>Is Connected</b>.</li>
-    <li>Set it to <b>Run Immediately</b>, add the <b>Open App</b> action, and pick <b>Encore</b>.</li>
-    <li>Turn the iPad on its side. Swipe left and right to change views; tap to show these controls.</li>
-  </ol>
+  <h3 class="group-title">Screen</h3>
+  <div class="card">
+    <div class="row"><label class="row-label" for="setWake">Keep screen on</label><input class="switch" type="checkbox" id="setWake"></div>
+  </div>
 </aside>
 
 <!-- Shown when Encore's sleep timer ends while you are here. Tap to come back. -->

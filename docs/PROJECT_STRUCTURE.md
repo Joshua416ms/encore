@@ -22,7 +22,6 @@ _Last updated: 2026-11-19._
 │   │   ├── ui/modes.js           Display modes (photos, artwork, lyrics, clock), dots, swipe gestures
 │   │   ├── ui/library.js         Spotify screen (swipe down): controls, volume, queue, playlists, albums, history
 │   │   ├── ui/sleepbutton.js     Moon button + menu for the sleep timer
-│   │   ├── ui/automode.js        Automatic screen switching
 │   │   ├── ui/lyricsmode.js      Lyrics screen
 │   │   ├── lyrics/lrclib.js      LRCLIB lookup, timestamp parser, on-device cache
 │   │   ├── ui/artmode.js         Full-screen album artwork mode

@@ -51,7 +51,6 @@ or, when it's closed, goes to the separate Nightstand app (which comes back with
 | `ui/layout.js` | Widget size (CSS variables), free position of the dock (fractions `wX`/`wY`), press-and-hold dragging, +/− size, clock placement, readability tint | `settings` |
 | `ui/nowplaying.js` | Widget contents and Spotify buttons; exports the shared `crossfader`, `paintControls` and `createSeekBar` | `playback` |
 | `ui/playermode.js` | Player screen: cover, song text, seek bar and controls (reuses the helpers from `nowplaying.js`) | `playback`, `nowplaying` |
-| `ui/automode.js` | Automatic screen switching (music → Player, stopped → photos, night → clock; your choice wins for 30 min) | `modes` (via `main`) |
 | `ui/lyricsmode.js` | Lyrics screen: renders lines, highlights the current one; reports whether the song has lyrics (`has`) | `lyrics/lrclib.js`, `playback` |
 | `lyrics/lrclib.js` | Looks up lyrics on LRCLIB, parses timestamps, caches results on the device | LRCLIB |
 | `ui/artmode.js` | Full-screen cover + edge-colour fill | receives tracks from `nowplaying` via `main` |
