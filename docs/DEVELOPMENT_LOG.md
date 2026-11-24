@@ -120,3 +120,12 @@
   exactly 3 "next" requests and Up next then started at the right song; "Show all" and the scroll position survived;
   Show less → 12 cards; reopening → 12 cards. No console errors from the app.
 - Not tested yet: real Spotify (how fast several "next" calls in a row land), the iPad itself.
+
+**Deploy fix (2026-11-23)**
+- The GitHub Pages deploy for ca930f0 failed ("No artifacts named github-pages were found"): the old
+  `upload-pages-artifact@v3` no longer works with `deploy-pages@v4` on GitHub's newer runners. Updated to
+  `upload-pages-artifact@v4` and `checkout@v5`; the next deploy succeeded. Lesson: after pushing, check that the
+  Actions run is green before saying a change is live.
+- Retested with a fake Spotify (this time with polling on): jump to the 8th song (8 skips, now playing = that song),
+  Up next follows the Next button, Show all and scroll kept; sleep timer menu, survives a reload, fade 60 → 0, pause,
+  volume back, black screen, tap to wake; swipe up → Nightstand.
