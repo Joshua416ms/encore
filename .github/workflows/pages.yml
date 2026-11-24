@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment_retry.outputs.page_url }}
     steps:
       - name: Check out the repository
         uses: actions/checkout@v5
@@ -41,6 +41,19 @@ jobs:
         with:
           path: app
 
+      # Deploy sometimes asks for the package before GitHub lists it ("No artifacts named github-pages were found";
+      # hit 3 of 6 runs in Nov 2026). So: try once, and if that fails, wait and try again. Only the retry can fail
+      # the run.
       - name: Deploy
         id: deployment
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: Wait before retrying
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 20
+
+      - name: Deploy (retry)
+        id: deployment_retry
+        if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v4
