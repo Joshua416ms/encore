@@ -34,8 +34,7 @@ html,body{height:100%}
 /* touch-action:none lets our own code read horizontal swipes instead of the browser scrolling or going "back".
    Scrollable panels (settings, pop-up) opt back in to vertical scrolling. */
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);overflow:hidden;touch-action:none;
-  -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;
-  -webkit-touch-callout:none}                                             /* press-and-hold opens Settings, not iOS's menu */
+  -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
 .sheet,.modal{touch-action:pan-y}
 button{font:inherit;color:inherit}
 [hidden]{display:none!important}
@@ -214,7 +213,6 @@ body:not(.mode-photos) .dock{opacity:0;pointer-events:none}
 /* z-index 7: above the full-screen album art, lyrics and clock screens (4), so Settings works from every screen */
 .gear{left:50%;margin-left:-22px;top:calc(env(safe-area-inset-top,0px) + 14px);z-index:7}
 body.ui .gear,body.ui.has-photos.mode-photos .nav{opacity:1;pointer-events:auto}
-body.no-gear .gear{opacity:0;pointer-events:none}                       /* "Settings button on tap" off: hold to open */
 
 /* ---------- widget size buttons (Feature A) ---------- */
 .w-size{display:flex;gap:8px;opacity:0;pointer-events:none;transition:opacity .4s}
