@@ -184,6 +184,7 @@ const settingsUI = createSettings({
     if (key === "kbOn" || key === "kbStrength") syncCollection(true); // re-show so the new motion applies now
     if (key === "nightMode") applyNight();
     if (key === "wakeOn") { if (wakeWanted()) requestWake(); else releaseWake(); }
+    if (key === "gearOn") applyGear();
   },
   onOpen(open) { if (open) photos.render(); else photos.release(); },
   onConnect: () => openConnect(),
@@ -246,6 +247,27 @@ $("openPhotos").addEventListener("click", e => { e.stopPropagation(); settingsUI
 $("wpPrev").addEventListener("click", e => { e.stopPropagation(); engine.prev(); showUI(); });
 $("wpNext").addEventListener("click", e => { e.stopPropagation(); engine.next(); showUI(); });
 
+/* ---------- Settings button: shown with a tap, unless "Settings button on tap" is off.
+   Press and hold the screen (0.6 s, finger still) always opens Settings, so it's never out of reach. ---------- */
+function applyGear() { document.body.classList.toggle("no-gear", !settings.gearOn); }
+const HOLD_MS = 600, HOLD_SLOP = 10;
+let holdTimer = null, holdX = 0, holdY = 0, heldOpen = false;
+const cancelHold = () => { clearTimeout(holdTimer); holdTimer = null; };
+document.addEventListener("pointerdown", e => {
+  cancelHold();
+  heldOpen = false;
+  if (!e.isPrimary || settingsUI.isOpen() || asleep || document.body.classList.contains("lib-open")) return;
+  if (e.target.closest("button, a, input, select, textarea, #widget, #sheet, #library, #connect, #dots, #sleepScreen, .bar")) return;
+  holdX = e.clientX; holdY = e.clientY;
+  holdTimer = setTimeout(() => { holdTimer = null; heldOpen = true; document.body.classList.remove("ui"); settingsUI.open(); }, HOLD_MS);
+});
+document.addEventListener("pointermove", e => {
+  if (holdTimer && Math.hypot(e.clientX - holdX, e.clientY - holdY) > HOLD_SLOP) cancelHold();
+});
+document.addEventListener("pointerup", cancelHold);     // heldOpen is cleared by the click that follows, or the next press
+document.addEventListener("pointercancel", cancelHold);
+document.addEventListener("contextmenu", e => e.preventDefault());
+
 /* ---------- show/hide controls on tap ---------- */
 let uiTimer;
 function showUI() {
@@ -255,6 +277,7 @@ function showUI() {
 }
 document.addEventListener("click", e => {
   if (modes.justSwiped()) return;                       // that was a swipe, not a tap
+  if (heldOpen) { heldOpen = false; return; }           // the click that ends a press-and-hold: keep Settings open
   if (settingsUI.isOpen() && !e.target.closest("#sheet")) { settingsUI.close(); return; }
   showUI();
 });

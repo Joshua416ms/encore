@@ -17,6 +17,8 @@ export const DEFAULTS = {
   nightMode: "auto",
   // Keep the iPad awake while Encore is open (Screen Wake Lock). Nightstand's switch writes this same value.
   wakeOn: true,
+  // The gear that appears with a tap. Off: no gear; press and hold the screen to open Settings instead.
+  gearOn: true,
 };
 
 // No longer settings: always these values. main.js writes them over whatever was saved, on every start.
@@ -57,6 +59,7 @@ export const SCHEMA = {
   ],
   screen: [
     { key: "wakeOn", label: "Keep screen on", type: "switch", note: "Stays awake while Encore or Nightstand is open." },
+    { key: "gearOn", label: "Settings button on tap", type: "switch", note: "When off, press and hold the screen to open Settings." },
     { key: "nightMode", label: "Night mode", type: "segmented", options: [["auto", "Schedule"], ["on", "On"], ["off", "Off"]] },
   ],
 };
