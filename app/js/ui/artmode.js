@@ -11,11 +11,12 @@ export function createArtMode({ onAccent } = {}) {
 
   // Reads the average colour of a 2-pixel-wide strip at each side of a 16×16 copy of the cover.
   // This works because Spotify's image server sends "Access-Control-Allow-Origin: *" (checked 2026-11-18).
-  function sampleEdges(url, mine) {
+  // Resolves once the colours are set (or reset), so show() can bring the cover in after the colour.
+  const sampleEdges = (url, mine) => new Promise(done => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
-      if (mine !== ticket) return;
+      if (mine !== ticket) return done();
       try {
         const c = document.createElement("canvas");
         c.width = c.height = 16;
@@ -33,10 +34,11 @@ export function createArtMode({ onAccent } = {}) {
         root.style.setProperty("--fill-r", avg(14));
         onAccent && onAccent(accentFrom(g.getImageData(0, 0, 16, 16).data));
       } catch { resetFill(); }                // canvas refused to read the pixels: plain black is fine
+      done();
     };
-    img.onerror = resetFill;
+    img.onerror = () => { if (mine === ticket) resetFill(); done(); };
     img.src = url;
-  }
+  });
   function resetFill() {
     root.style.removeProperty("--fill-l"); root.style.removeProperty("--fill-r");
     onAccent && onAccent(null);
@@ -71,12 +73,15 @@ export function createArtMode({ onAccent } = {}) {
     if (!url) { a.classList.remove("on"); b.classList.remove("on"); resetFill(); return; }
     const back = front === a ? b : a;
     back.src = url;
-    try { await back.decode(); } catch { /* shown once loaded */ }
+    // Colour first: the background starts fading to the new cover's colours, and the cover follows 180 ms later.
+    // The old cover stays on screen until the new one is decoded, so there is never a blank frame.
+    await Promise.all([back.decode().catch(() => { /* shown once loaded */ }), sampleEdges(url, mine)]);
+    if (mine !== ticket) return;
+    await new Promise(r => setTimeout(r, 180));
     if (mine !== ticket) return;
     back.classList.add("on");
     front.classList.remove("on");
     front = back;
-    sampleEdges(url, mine);
   }
 
   /** Called whenever the playing item changes. track = normalized track from playback.js, or null. */

@@ -17,7 +17,7 @@ const EDGE_ZONE = 56;       // px at the top and bottom of the screen where vert
 const MIN_DISTANCE = 60;    // px the finger must travel sideways
 const MAX_TIME = 700;       // ms — a swipe is a quick flick, not a slow drag
 
-export function createModes({ settings, save, isDragging, hasLyrics, onModeChange, onVertical, isPanelOpen }) {
+export function createModes({ settings, save, isDragging, hasLyrics, onModeChange, onVertical, isPanelOpen, handoff }) {
   const body = document.body;
   const dots = [...document.querySelectorAll("#dots button")];
   let swipe = null, swipedAt = 0;
@@ -28,7 +28,10 @@ export function createModes({ settings, save, isDragging, hasLyrics, onModeChang
   function set(mode, source = "user") {
     const list = available(), requested = mode;
     if (!list.includes(mode)) mode = mode === "lyrics" ? "artwork" : "photos";   // no lyrics → the cover instead
+    const from = ALL_MODES.find(m => body.classList.contains("mode-" + m));
+    const fly = handoff && from ? handoff.prepare(from, mode) : null;   // measure the cover before the screens swap
     for (const m of ALL_MODES) body.classList.toggle("mode-" + m, m === mode);
+    fly && fly();
     dots.forEach(d => {
       d.hidden = !list.includes(d.dataset.mode);
       d.setAttribute("aria-current", String(d.dataset.mode === mode));

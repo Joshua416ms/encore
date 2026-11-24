@@ -1,6 +1,10 @@
 /* Encore — a full-screen photo frame with a Spotify widget.
    Layers (back to front): photos (.backdrop) → corner slots holding the clock and the widget → nav/gear → modal/sheet.
    Deliberately dark-only: an ambient display that sits over photographs. */
+/* Track change, colour first: registering the cover-edge colours as <color> lets the gradients that use them
+   fade (.7s) to the new song's colours. Older Safari without @property simply snaps, which is fine. */
+@property --fill-l{syntax:'<color>';inherits:true;initial-value:#000}
+@property --fill-r{syntax:'<color>';inherits:true;initial-value:#000}
 :root{
   --bg:#07080a;
   --fg:#f5f5f7;
@@ -16,6 +20,9 @@
      title (fg, 600) > artist (fg-2, 500) > album (fg-3, 400, smaller) > date (fg-3, 400, small). */
   --sans:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",system-ui,sans-serif;
   --ease:cubic-bezier(.22,.61,.36,1);
+  --out:cubic-bezier(.16,1,.3,1);   /* things arriving */
+  --in:cubic-bezier(.4,0,1,1);      /* things leaving (shorter) */
+  --give:cubic-bezier(.34,1.25,.64,1); /* switch knob only: a small overshoot */
   --edge:20px;                  /* safe margin from the screen edge */
   --wall-fade:2s;
   --wall-dim:0;
@@ -28,6 +35,7 @@
   color-scheme:dark;
 }
 :root.accent-white{--accent:#f5f5f7}
+:root{transition:--fill-l .7s var(--ease),--fill-r .7s var(--ease)}
 
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -163,7 +171,7 @@ body:not(.mode-photos) .dock{opacity:0;pointer-events:none}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 .w-meta{grid-area:meta;min-width:0;cursor:pointer;transition:opacity .4s var(--ease)}
-.w-meta.swap{opacity:0}
+.w-meta.swap{opacity:0;transition-duration:.18s}   /* old text out fast; new text fades in over .4s */
 .title{margin:0;font-weight:600;font-size:calc(16px * var(--t));line-height:1.2;letter-spacing:-.01em;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .artist{margin:3px 0 0;font-weight:500;font-size:calc(13.5px * var(--t));color:var(--fg-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -199,12 +207,17 @@ body:not(.mode-photos) .dock{opacity:0;pointer-events:none}
 .ctl .one{position:absolute;top:8px;right:7px;font-size:8px;font-weight:800;display:none}
 .ctl.repeat-one .one{display:block}
 .ctl.play{width:max(40px,calc(44px * var(--s)));height:max(40px,calc(44px * var(--s)));background:#fff;color:#0b0b0d}
-.ctl.play svg{width:calc(22px * var(--s));height:calc(22px * var(--s))}
+/* Play/pause glyph: two shapes that morph between a triangle (in two halves) and two bars via clip-path.
+   The glyph box is the height of the old icon's shapes (14/24 of the old 22px SVG), so it looks the same size. */
+.ctl.play .glyph{position:relative;display:block;width:calc(13px * var(--s));height:calc(13px * var(--s))}
+.ctl.play .glyph i{position:absolute;inset:0;background:currentColor;
+  transition:clip-path .24s var(--out),-webkit-clip-path .24s var(--out)}
+.ctl.play .h1{-webkit-clip-path:polygon(12% 0,57% 25%,57% 75%,12% 100%);clip-path:polygon(12% 0,57% 25%,57% 75%,12% 100%)}
+.ctl.play .h2{-webkit-clip-path:polygon(56% 25%,100% 50%,100% 50%,56% 75%);clip-path:polygon(56% 25%,100% 50%,100% 50%,56% 75%)}
+.ctl.play.playing .h1{-webkit-clip-path:polygon(14% 0,40% 0,40% 100%,14% 100%);clip-path:polygon(14% 0,40% 0,40% 100%,14% 100%)}
+.ctl.play.playing .h2{-webkit-clip-path:polygon(60% 0,86% 0,86% 100%,60% 100%);clip-path:polygon(60% 0,86% 0,86% 100%,60% 100%)}
 .ctl:active:not(:disabled){transform:scale(.9)}
 .ctl:disabled{opacity:.3;cursor:default}
-.ctl.play .icon-pause{display:none}
-.ctl.play.playing .icon-pause{display:block}
-.ctl.play.playing .icon-play{display:none}
 
 .w-status{grid-area:status;margin:0;font-size:12px;line-height:1.4;color:var(--fg-2)}
 .w-connect{grid-area:connect;display:flex;flex-direction:column;align-items:flex-start;gap:10px}
@@ -245,7 +258,7 @@ body:not(.mode-photos) .slot > *{pointer-events:none}
 /* Mode 2 — full-screen album artwork. The whole cover is shown (Spotify forbids cropping it); it fills the
    screen's height, and the remaining space is a gradient of colours sampled from the cover's left and right edges. */
 .art-stage{background:#000;display:grid;place-items:center}
-.art-fill{position:absolute;inset:0;background:linear-gradient(90deg,var(--fill-l,#000),var(--fill-r,#000));transition:background 1s var(--ease)}
+.art-fill{position:absolute;inset:0;background:linear-gradient(90deg,var(--fill-l,#000),var(--fill-r,#000))}
 /* The cover is square: it takes the screen's shorter side minus --art-margin on each side. --art-margin is in vmin
    (a percentage of the shorter side), so the spacing adapts to screen size and orientation. Never cropped (contain). */
 .stage-art{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
@@ -256,6 +269,9 @@ body:not(.mode-photos) .slot > *{pointer-events:none}
 .art-stage.plain .art-fill{display:none}
 .art-stage.plain .stage-art{box-shadow:none}
 .stage-art.on{opacity:1}
+/* Cover hand-off (handoff.js): the flying copy sits above the screens (4); the real covers hide during the flight. */
+.flight{position:fixed;left:0;top:0;z-index:5;transform-origin:0 0;pointer-events:none;border-radius:8px;object-fit:contain}
+body.handoff .stage-art,body.handoff .pl-art{visibility:hidden}
 .stage-msg{position:relative;margin:0;padding:0 24px;text-align:center;font-size:17px;font-weight:500;color:var(--fg-2)}
 .stage-msg:empty{display:none}
 .stage-logo{position:absolute;left:max(16px,calc(env(safe-area-inset-left,0px) + 16px));bottom:calc(env(safe-area-inset-bottom,0px) + 14px);
@@ -279,7 +295,7 @@ body:not(.mode-photos) .slot > *{pointer-events:none}
 .pl-logo{display:block;width:max-content;margin:-6px 0 0 -6px;padding:6px;border-radius:8px}
 .pl-logo img{display:block;width:clamp(70px,7vw,92px);height:auto}
 .pl-meta{margin-top:clamp(14px,2.4vh,28px);cursor:pointer;transition:opacity .4s var(--ease)}
-.pl-meta.swap{opacity:0}
+.pl-meta.swap{opacity:0;transition-duration:.18s}
 /* Title: one line. When it is too long it scrolls right-to-left in a loop (a second copy follows the first, so the
    loop is seamless), pausing at the start of each pass. --run (distance) and --dur are set by playermode.js. */
 .pl-title{margin:0;font-weight:700;font-size:clamp(28px,3.6vw,52px);line-height:1.12;letter-spacing:-.022em;
@@ -307,14 +323,15 @@ body:not(.mode-photos) .slot > *{pointer-events:none}
 .pl-progress .bar-fill{background:var(--fg)}
 .pl-progress .bar.drag .bar-track{height:8px}
 .pl-progress .times{margin-top:4px;font-size:clamp(13px,1.15vw,16px);color:var(--fg-3)}
-.pl-controls{display:flex;align-items:center;justify-content:space-between;max-width:440px}
+/* five equal columns, so the centres of all five buttons are evenly spaced even though Play is a different size */
+.pl-controls{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:center;justify-items:center;width:100%;max-width:440px}
 .pl-controls .ctl{width:60px;height:60px}
 .pl-controls .ctl svg{width:34px;height:34px}
 .pl-controls .ctl.extra svg{width:26px;height:26px}
 .pl-controls .ctl.extra.on::after{bottom:6px}
 .pl-controls .ctl .one{top:12px;right:12px;font-size:10px}
-.pl-controls .ctl.play{width:84px;height:84px}
-.pl-controls .ctl.play svg{width:36px;height:36px}
+.pl-controls .ctl.play{width:52px;height:52px}
+.pl-controls .ctl.play .glyph{width:14px;height:14px}
 .pl-status{margin:0;min-height:1.4em;font-size:14px;line-height:1.4;color:var(--fg-2)}
 .pl-status:empty{visibility:hidden}
 /* Nothing playing / not connected: only the message, centred */
@@ -383,8 +400,8 @@ a.btn{text-decoration:none}
 .sheet{position:fixed;z-index:10;top:0;right:0;bottom:0;width:min(440px,100%);overflow-y:auto;overscroll-behavior:contain;
   background:var(--glass-strong);border-left:1px solid var(--hair);-webkit-backdrop-filter:blur(30px) saturate(1.4);backdrop-filter:blur(30px) saturate(1.4);
   padding:calc(env(safe-area-inset-top,0px) + 18px) max(20px,calc(env(safe-area-inset-right,0px) + 18px)) calc(env(safe-area-inset-bottom,0px) + 32px) 22px;
-  transform:translateX(104%);transition:transform .4s var(--ease);-webkit-user-select:text;user-select:text}
-.sheet.open{transform:none}
+  transform:translateX(104%);transition:transform .26s var(--in);-webkit-user-select:text;user-select:text}
+.sheet.open{transform:none;transition:transform .44s var(--out)} /* opens slower than it closes */
 .sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
 .sheet h2{margin:0;font-size:28px;font-weight:700;letter-spacing:-.02em}
 .done{border:0;background:none;color:var(--sand);font:600 17px var(--sans);padding:8px 0 8px 12px;cursor:pointer}
@@ -410,15 +427,21 @@ a.btn{text-decoration:none}
 .row-btn.danger{color:var(--danger)}
 
 /* switch: sand when on */
-.switch{appearance:none;-webkit-appearance:none;width:51px;height:31px;border-radius:16px;background:var(--fg-4);position:relative;cursor:pointer;flex:none;margin:0;transition:background .2s}
-.switch::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.3);transition:transform .2s}
+.switch{appearance:none;-webkit-appearance:none;width:51px;height:31px;border-radius:16px;background:var(--fg-4);position:relative;cursor:pointer;flex:none;margin:0;transition:background .25s var(--ease)}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:14px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.3);transition:transform .34s var(--give),width .22s var(--out)}
 .switch:checked{background:var(--sand)}
 .switch:checked::after{transform:translateX(20px)}
+/* pressed: the knob stretches toward the far side; when on, it shifts left so its right edge stays put */
+.switch.press::after{width:33px}
+.switch.press:checked::after{transform:translateX(14px)}
 
 /* segmented buttons (instead of drop-downs) */
-.seg{display:flex;flex:none;gap:2px;padding:2px;border-radius:9px;background:rgba(255,255,255,.08)}
-.seg button{border:0;background:none;color:var(--fg-2);font:500 14px var(--sans);padding:6px 12px;border-radius:7px;cursor:pointer;transition:background .2s,color .2s}
-.seg button[aria-checked="true"]{background:var(--sand);color:#1a1712;font-weight:600}
+/* Inchworm: one sand pill (.ind, placed by ui/settings.js) slides under the selected button,
+   its leading edge first and its trailing edge 70 ms behind. */
+.seg{position:relative;display:flex;flex:none;gap:2px;padding:2px;border-radius:9px;background:rgba(255,255,255,.08)}
+.seg button{position:relative;z-index:1;border:0;background:none;color:var(--fg-2);font:500 14px var(--sans);padding:6px 12px;border-radius:7px;cursor:pointer;transition:color .2s}
+.seg button[aria-checked="true"]{color:#1a1712;font-weight:600}
+.seg .ind{position:absolute;top:2px;bottom:2px;border-radius:7px;background:var(--sand);box-shadow:0 1px 4px rgba(0,0,0,.25)}
 
 /* slider: sand fill up to the thumb (--fill is set by ui/settings.js), round white thumb */
 .row.range input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:28px;margin:0;background:none;cursor:pointer}
@@ -429,6 +452,25 @@ a.btn{text-decoration:none}
 .row.range input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;margin-top:-10px;border-radius:50%;
   background:#fff;border:0;box-shadow:0 1px 6px rgba(0,0,0,.4)}
 .row.range input[type=range]::-moz-range-thumb{width:24px;height:24px;border-radius:50%;background:#fff;border:0;box-shadow:0 1px 6px rgba(0,0,0,.4)}
+
+/* Detents ("Change photo every"): the native range stays on top for touch, keyboard and VoiceOver but is drawn
+   transparent; an overlay (positioned by ui/settings.js) draws the track, ticks and a thumb that glides between stops. */
+.row.range .det{grid-area:input;position:relative}
+.det input[type=range]{position:relative;z-index:1;display:block}
+.row.range .det input[type=range]::-webkit-slider-runnable-track{background:transparent}
+.row.range .det input[type=range]::-moz-range-track{background:transparent}
+.row.range .det input[type=range]::-webkit-slider-thumb{background:transparent;box-shadow:none}
+.row.range .det input[type=range]::-moz-range-thumb{background:transparent;box-shadow:none}
+.det-track{position:absolute;left:0;right:0;top:50%;height:4px;margin-top:-2px;border-radius:2px;background:var(--fg-4);overflow:hidden;pointer-events:none}
+.det-fill{position:absolute;inset:0;background:var(--sand);transform-origin:0 50%;transform:scaleX(0)}
+.det-ticks{position:absolute;left:12px;right:12px;top:50%;pointer-events:none}   /* 12px = half the thumb: ticks sit under thumb centres */
+.det-ticks i{position:absolute;top:6px;width:2px;height:4px;margin-left:-1px;border-radius:1px;background:var(--fg-4)}
+/* the thumb's rail is the track minus one knob width, so translateX(p*100%) lines the knob up with the native thumb */
+.det-thumb{position:absolute;left:0;right:24px;top:50%;height:24px;margin-top:-12px;pointer-events:none}
+.det-knob{width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.4)}
+.det-fill,.det-thumb{transition:transform .16s var(--out)}
+.row.range output.roll{display:inline-grid;justify-items:end}
+.row.range output.roll > span{grid-area:1/1;white-space:nowrap}
 
 /* collections */
 .collections{display:flex;flex-direction:column}
@@ -593,7 +635,7 @@ body.lib-open .gear{opacity:0;pointer-events:none}
 .lib-progress .times{margin-top:6px;font-size:12px}
 .lib-controls{display:flex;align-items:center;justify-content:space-between;--s:1.35}
 .lib-controls .ctl.play{width:72px;height:72px}
-.lib-controls .ctl.play svg{width:32px;height:32px}
+.lib-controls .ctl.play .glyph{width:19px;height:19px}
 .lib-volume{display:flex;align-items:center;gap:12px;color:var(--fg-3)}
 .lib-volume svg{width:22px;height:22px;flex:none}
 .lib-volume input{flex:1;accent-color:var(--fg)}

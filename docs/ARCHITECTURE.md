@@ -54,6 +54,7 @@ or, when it's closed, goes to the separate Nightstand app (which comes back with
 | `ui/playermode.js` | Player screen: cover, song text, seek bar and controls (reuses the helpers from `nowplaying.js`) | `playback`, `nowplaying` |
 | `ui/lyricsmode.js` | Lyrics screen: renders lines, highlights the current one; reports whether the song has lyrics (`has`) | `lyrics/lrclib.js`, `playback` |
 | `lyrics/lrclib.js` | Looks up lyrics on LRCLIB, parses timestamps, caches results on the device | LRCLIB |
+| `ui/handoff.js` | Cover hand-off: a copy of the cover flies between the Album art and Player screens during the crossfade (called from `modes.set`) | `modes` |
 | `ui/artmode.js` | Full-screen cover + edge-colour fill | receives tracks from `nowplaying` via `main` |
 | `ui/settings.js` | Settings sheet; options built from `SCHEMA`; `DEFAULTS` | `onChange` callback |
 | `ui/photos.js` | Collections list, import, thumbnails | `library`, `importer`, `engine` |
@@ -97,4 +98,5 @@ or, when it's closed, goes to the separate Nightstand app (which comes back with
 | Nightstand follows Encore's "Keep screen on" switch | One setting for both apps | Nightstand has no switch of its own |
 | Polling Spotify | The Web API has no push updates | Up to ~3 s delay for changes made elsewhere on the Player, Lyrics and Spotify screens; up to ~10 s on the others (song changes still show within ~0.5 s: a poll is set for just after the song should end) |
 | Position bars tick once a second (shared clock) and a linear CSS transition moves them in between; synced lyrics set one timer for the next line | Fewer CPU wake-ups: before, 2 bars repainted 4×/s, the Spotify screen 2×/s and lyrics checked 5×/s, even off screen | Time labels change once a second (on the song's whole seconds, so on time); bars only move with `transform` |
+| Motion: easing tokens `--out` / `--in` / `--give` in `:root` (same strings as `OUT` / `IN` in JS); `transform`/`opacity` first, WAAPI for sequences, every `animate()` checks reduced motion. Switch Stretch, sheet slide + settle, Inchworm pill and Detent slider live in `settings.js` + app.css; play morph (`.glyph`) and colour-first track change in app.css + `artmode.js` / `nowplaying.js`; cover hand-off in `handoff.js` | One feel across the app; the global reduced-motion CSS rule doesn't reach WAAPI | `--give` overshoots a little (switch only); with reduced motion the movement is skipped but colour and opacity changes stay |
 | System font only | Consistent typography; removed the Google Fonts request | — |

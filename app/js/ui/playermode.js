@@ -9,7 +9,7 @@ const $ = id => document.getElementById(id);
 
 export function createPlayerMode({ playback, isPremiumBlocked, clock }) {
   const stage = $("playerStage"), meta = $("plMeta");
-  const cover = crossfader($("plArtA"), $("plArtB"));
+  const cover = crossfader($("plArtA"), $("plArtB"), null, 180);   // colour (from artmode.js) first, cover 180 ms later
   let trackId, swapTimer;
 
   $("plPlay").onclick = () => playback.togglePlay();

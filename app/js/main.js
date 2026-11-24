@@ -23,6 +23,7 @@ import { createLayout } from "./ui/layout.js";
 import { createPhotos } from "./ui/photos.js";
 import { createWallpaperEngine } from "./wallpapers/engine.js";
 import { createModes } from "./ui/modes.js";
+import { createHandoff } from "./ui/handoff.js";
 import { createArtMode } from "./ui/artmode.js";
 import { createPlayerMode } from "./ui/playermode.js";
 import { createLyricsMode } from "./ui/lyricsmode.js";
@@ -167,6 +168,7 @@ const modes = createModes({
   isDragging: () => layout.isDragging(),
   hasLyrics: () => lyrics.has,
   isPanelOpen: () => library.isOpen(),
+  handoff: createHandoff(),
   onVertical(dir) {
     if (settingsUI.isOpen() || !$("connect").hidden) return;
     if (library.isOpen()) { if (dir === "up") library.close(); return; }

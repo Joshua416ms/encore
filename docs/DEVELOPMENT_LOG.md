@@ -158,3 +158,18 @@
   Player every 3 s, and switching to Player or opening the Spotify screen polls at once; lyric lines change within
   ~50 ms of their time; the widget bar (switched off in settings) doesn't tick. No console errors from the app.
 - Not tested yet: the iPad itself.
+
+**Motion: settings controls, hand-off, colour first, play morph (2026-11-24)**
+- Built 7 of the 8 variants picked in the Motion Lab (the photo dissolve was already the app's behaviour).
+- Easing tokens `--out`, `--in`, `--give` in `:root`; JS uses the same curves.
+- Settings: Stretch switch (knob widens on press, `--give`), sheet slides in and settles with staggered rows, Inchworm
+  pill on segmented controls (leading edge first, trailing edge 70 ms later), detents on "Change photo every", and
+  every slider's value label rolls.
+- Play buttons morph between play and pause (clip-path, `.glyph`). Track change: the background colour moves first,
+  then the cover, then the text. The Player play button is 52 px and the five Player controls are an even grid.
+- Cover hand-off (`ui/handoff.js`): switching between Album art and Player flies a copy of the cover (520 ms, `--out`)
+  from one place to the other while the screens crossfade; never cropped (`object-fit:contain`); skipped with reduced
+  motion; a new mode change during the flight ends it at once.
+- Tested in the browser with a fake Spotify: flight starts on the Album art cover and lands exactly on the Player
+  cover (both directions), real covers come back, cancel works, reduced motion keeps only the crossfade. No new console errors.
+- Not tested yet: the iPad itself.

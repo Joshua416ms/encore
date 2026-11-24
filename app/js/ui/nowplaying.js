@@ -9,8 +9,9 @@ export function formatTime(ms) {
   return h ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${m}:${ss}`;
 }
 
-/** Two stacked <img> layers; the new image is fully decoded before it fades in, so there is never a blank frame. */
-export function crossfader(a, b, onHasImage) {
+/** Two stacked <img> layers; the new image is fully decoded before it fades in, so there is never a blank frame.
+ *  delay (ms): wait this long after decoding before the fade starts (the Player uses it so its colour leads). */
+export function crossfader(a, b, onHasImage, delay = 0) {
   let front = a, current = undefined, ticket = 0;
   return async url => {
     if (url === current) return;
@@ -25,6 +26,10 @@ export function crossfader(a, b, onHasImage) {
     back.src = url;
     try { await back.decode(); } catch { /* still show it once loaded */ }
     if (mine !== ticket) return;
+    if (delay && current !== undefined && front.classList.contains("on")) {   // only between songs, not the first cover
+      await new Promise(r => setTimeout(r, delay));
+      if (mine !== ticket) return;
+    }
     back.classList.add("on");
     front.classList.remove("on");
     front = back;
