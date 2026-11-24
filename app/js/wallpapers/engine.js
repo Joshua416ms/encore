@@ -9,6 +9,39 @@ import { imageKeys, getImage } from "./library.js";
 
 const STATE_KEY = "encore.wall.state";
 
+// The blurred background is blurred ONCE, here, into a small picture, instead of with a CSS filter. A live CSS
+// blur on a full-screen layer that pans and zooms is redone by the GPU on every frame, for hours; a picture that is
+// already blurred costs almost nothing to move. Canvas filters need Safari 18+; elsewhere bake() returns null and
+// the CSS filter is used as before.
+const canvasFilter = (() => {
+  try { const g = document.createElement("canvas").getContext("2d"); g.filter = "blur(1px)"; return g.filter === "blur(1px)"; }
+  catch { return false; }
+})();
+const BG_EDGE = 360;   // same size as the import thumbnail: once blurred, more pixels look identical
+
+async function bake(blob, blurPx) {
+  if (!canvasFilter || !blurPx) return null;
+  let bmp;
+  try {
+    bmp = await createImageBitmap(blob);
+    const k0 = Math.min(1, BG_EDGE / Math.max(bmp.width, bmp.height));
+    const w = Math.max(1, Math.round(bmp.width * k0)), h = Math.max(1, Math.round(bmp.height * k0));
+    // .wp-bg is 116% of the screen with object-fit: cover, so it is enlarged k times on screen. Blur by blurPx / k
+    // here to match the old CSS blur in screen pixels.
+    const k = Math.max((innerWidth * 1.16) / w, (innerHeight * 1.16) / h);
+    const c = document.createElement("canvas"); c.width = w; c.height = h;
+    const g = c.getContext("2d");
+    g.drawImage(bmp, 0, 0, w, h);                       // sharp copy underneath, so the blurred edges don't fade to black
+    g.filter = `blur(${(blurPx / k).toFixed(2)}px) saturate(1.15)`;
+    g.drawImage(bmp, 0, 0, w, h);
+    return await new Promise(res => c.toBlob(res, "image/jpeg", 0.85));
+  } catch {
+    return null;
+  } finally {
+    if (bmp && bmp.close) bmp.close();
+  }
+}
+
 export function createWallpaperEngine({ layers: [a, b], getSettings, onShow }) {
   let keys = [], collection = null, front = a, currentUrl = null, timer = null, running = false, ticket = 0;
   let st = load();   // { collection, current, bag, history, changedAt } — survives app restarts
@@ -72,9 +105,11 @@ export function createWallpaperEngine({ layers: [a, b], getSettings, onShow }) {
   async function prepare(slide, rec) {
     const previous = held.get(slide);
     if (previous) { previous.forEach(u => URL.revokeObjectURL(u)); held.delete(slide); }   // slide reused: free its old photo
+    const baked = await bake(rec.thumb || rec.display, getSettings().bgBlur);
     const fgUrl = URL.createObjectURL(rec.display);
-    const bgUrl = URL.createObjectURL(rec.thumb || rec.display);
+    const bgUrl = URL.createObjectURL(baked || rec.thumb || rec.display);
     const fg = slide.querySelector(".wp-fg"), bg = slide.querySelector(".wp-bg");
+    bg.classList.toggle("baked", !!baked);              // baked → no CSS filter (see app.css .wp-bg.baked)
     slide.style.setProperty("--ar", rec.w && rec.h ? (rec.w / rec.h).toFixed(4) : "1.5");
     kenBurns(slide, rec);
     fg.src = fgUrl;

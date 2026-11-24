@@ -129,3 +129,15 @@
 - Retested with a fake Spotify (this time with polling on): jump to the 8th song (8 skips, now playing = that song),
   Up next follows the Next button, Show all and scroll kept; sleep timer menu, survives a reload, fade 60 → 0, pause,
   volume back, black screen, tap to wake; swipe up → Nightstand.
+
+**Battery: no live blur over moving photos (2026-11-24)**
+- Photos screen: the pan-and-zoom moves two full-screen layers all the time. The background layer had a live
+  `filter: blur(20px)`, and the widget and clock had `backdrop-filter` blur over the moving photo, so the GPU redid
+  those blurs on every frame.
+- Now `wallpapers/engine.js` (`bake()`) blurs the 360 px thumbnail once on a canvas when a photo is shown and uses
+  that picture (`.wp-bg.baked`, no CSS filter). Canvas filters need Safari 18+; elsewhere the old CSS filter is kept.
+- Widget and clock backing: solid dark tint instead of `backdrop-filter` (widget tint + .18 to stay as readable).
+  Hidden nav / gear / size buttons drop their backdrop blur while the controls are hidden.
+- Tested in the browser with a sample photo: background baked (360×225, `filter: none`), no element with a live
+  backdrop blur on screen, side-by-side screenshots of baked vs. old CSS blur look the same, no console errors.
+- Not tested yet: the iPad itself (look of the widget, and how much battery it saves).
