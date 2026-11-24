@@ -161,6 +161,7 @@ export function createLibrary({ client, playback, toast, missingScopes, onReconn
 
     const fresh = cache && Date.now() - loadedAt < STALE_MS;
     if (!cache) main.replaceChildren(el("p", "lib-hint", "Loading your library…"));
+    else if (!detailFor) renderMain();   // reopened: show what we have at once (lists fold back to 12)
     const queueP = client.queue().catch(e => ({ error: e }));
     if (!fresh) {
       const [meR, pl, al, rp] = await Promise.allSettled([
@@ -170,22 +171,25 @@ export function createLibrary({ client, playback, toast, missingScopes, onReconn
         client.recentlyPlayed(),
       ]);
       if (meR.status === "fulfilled") me = meR.value;
+      const keep = cache && cache.queue;
       cache = {
         playlists: pl.status === "fulfilled" ? pl.value.filter(Boolean) : { error: pl.reason },
         albums: al.status === "fulfilled" ? al.value.map(i => i && i.album).filter(Boolean) : { error: al.reason },
         recent: rp.status === "fulfilled" ? ((rp.value && rp.value.items) || []) : { error: rp.reason },
+        queue: keep,
       };
       loadedAt = Date.now();
+      if (open && !detailFor) renderMain();
     }
     cache.queue = await queueP;
-    if (open && !detailFor) renderMain();
+    renderQueue();   // only Up next changes: "Show all" and the scroll position stay as they are
   }
 
   // Called when the song changes: Up next has moved on.
   async function refreshQueue() {
     if (!open || !cache) return;
     cache.queue = await client.queue().catch(e => ({ error: e }));
-    if (open && !detailFor) renderMain();
+    renderQueue();
   }
 
   function section(title) {
@@ -229,12 +233,53 @@ export function createLibrary({ client, playback, toast, missingScopes, onReconn
     items.slice(0, initial).forEach(i => g.append(card(i, kind)));
     wrap.append(g);
     if (items.length > initial) {
-      const more = el("button", "btn ghost tiny lib-more", `Show all ${items.length}`);
+      const more = el("button", "btn ghost tiny lib-more");
       more.type = "button";
-      more.addEventListener("click", () => { items.slice(initial).forEach(i => g.append(card(i, kind))); more.remove(); });
+      let all = false;
+      const label = () => { more.textContent = all ? "Show less" : `Show all ${items.length}`; };
+      label();
+      more.addEventListener("click", () => {
+        all = !all;
+        if (all) items.slice(initial).forEach(i => g.append(card(i, kind)));
+        else {
+          while (g.children.length > initial) g.lastChild.remove();
+          // Folding up can leave you far below the list: bring its title back into view.
+          const head = wrap.parentElement && wrap.parentElement.querySelector("h3");
+          if (head && head.getBoundingClientRect().top < scroller.getBoundingClientRect().top) head.scrollIntoView({ block: "start" });
+        }
+        label();
+      });
       wrap.append(more);
     }
     return wrap;
+  }
+
+  // Up next: tapping a song jumps to it, like the Spotify app (skip forward once per song before it).
+  let queueBox = null, jumping = false;
+  function renderQueue() {
+    if (!open || detailFor || !queueBox || !cache) return;
+    const q = queueBox;
+    q.replaceChildren(q.firstChild);   // keep the title
+    if (!cache.queue) { q.append(el("p", "lib-hint", "Loading…")); return; }
+    if (cache.queue.error) { q.append(el("p", "lib-hint", errorLine(cache.queue.error))); return; }
+    const items = (cache.queue.queue || []).filter(Boolean).slice(0, 10);
+    if (!items.length) q.append(el("p", "lib-hint", "Nothing queued. Spotify shows what plays next once something is playing."));
+    items.forEach((t, i) => {
+      const row = trackRow(t, { onPlay: () => jumpTo(i + 1, row) });
+      q.append(row);
+    });
+  }
+  async function jumpTo(skips, row) {
+    if (jumping) return;
+    jumping = true;
+    row.classList.add("picked");
+    try {
+      await run(() => playback.skip(skips));
+    } finally {
+      jumping = false;
+      row.classList.remove("picked");
+    }
+    refreshQueue();
   }
 
   function renderMain() {
@@ -242,15 +287,10 @@ export function createLibrary({ client, playback, toast, missingScopes, onReconn
     main.hidden = false;
     main.textContent = "";
 
-    // Up next
-    const q = section("Up next");
-    if (cache.queue && cache.queue.error) q.append(el("p", "lib-hint", errorLine(cache.queue.error)));
-    else {
-      const items = ((cache.queue && cache.queue.queue) || []).filter(Boolean).slice(0, 10);
-      if (!items.length) q.append(el("p", "lib-hint", "Nothing queued. Spotify shows what plays next once something is playing."));
-      items.forEach(t => q.append(trackRow(t)));
-    }
-    main.append(q);
+    // Up next (filled by renderQueue, which can redo it alone)
+    queueBox = section("Up next");
+    main.append(queueBox);
+    renderQueue();
 
     // Playlists
     const p = section("Your playlists");
@@ -358,6 +398,6 @@ export function createLibrary({ client, playback, toast, missingScopes, onReconn
     isOpen: () => open,
     render,
     onTrack: refreshQueue,
-    reset() { cache = null; me = null; detailFor = null; main.textContent = ""; detail.textContent = ""; },
+    reset() { cache = null; me = null; detailFor = null; queueBox = null; main.textContent = ""; detail.textContent = ""; },
   };
 }

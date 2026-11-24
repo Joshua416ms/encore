@@ -108,3 +108,15 @@
 - Tested in the browser: menu and label; end → black screen → tap back; the fade against a **fake Spotify**
   (60 → 45 → 30 → 15 → 0, pause, volume back to 60); Nightstand status texts and its sleep screen; no new console errors.
 - Not testable here: the wake lock (this test browser refuses it), real Spotify, the iPad locking afterwards.
+
+**Spotify screen fixes** (decided in a grilling session, S1–S6 in NEXT_STEPS, then built)
+- The song list no longer slides sideways: `.lib-row` lost its negative margin and uses `box-sizing:border-box`;
+  `.lib-scroll` has `overflow-x:hidden`.
+- "Show all" no longer folds back by itself: `load()` and `refreshQueue()` now call `renderQueue()`, which redraws only
+  Up next. The full column is drawn when the screen opens (so lists start at 12 again) and when you leave a playlist.
+- "Show all" turns into "Show less" (folds back to 12 and scrolls the section title back into view if needed).
+- Tap a song in Up next to jump to it: `playback.skip(n)` sends `POST /me/player/next` n times, one after the other.
+- Tested in the browser with a **fake Spotify**: no sideways overflow (landscape and portrait); tapping the 3rd song sent
+  exactly 3 "next" requests and Up next then started at the right song; "Show all" and the scroll position survived;
+  Show less → 12 cards; reopening → 12 cards. No console errors from the app.
+- Not tested yet: real Spotify (how fast several "next" calls in a row land), the iPad itself.

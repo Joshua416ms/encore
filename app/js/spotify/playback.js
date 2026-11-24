@@ -139,6 +139,8 @@ export function createPlayback(client, onChange) {
       return command(() => client.play(), s => { s.isPlaying = true; });
     },
     next: () => command(() => client.next()),
+    // Jump ahead in Up next: one "next" per song, one after the other (Spotify has no "skip to queue item").
+    skip: n => command(async () => { for (let i = 0; i < n; i++) await client.next(); }),
     previous: () => command(() => client.previous()),
     seek: ms => command(() => client.seek(ms), s => { s.progress = ms; }),
     toggleShuffle: () => command(() => client.shuffle(!(state && state.shuffle)), s => { s.shuffle = !s.shuffle; }),

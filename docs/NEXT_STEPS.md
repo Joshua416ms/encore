@@ -2,9 +2,11 @@
 
 _Written 2026-11-19 so a new chat can continue exactly where the last one stopped. Read this, then docs/ARCHITECTURE.md._
 
-## State (2026-11-19, evening)
+## State (2026-11-23)
 - Decisions 1–9 below are built, committed (420216a) and confirmed on the iPad with a real Spotify account.
-- Sleep timer (Q1–Q8 below) is built and tested in the browser; **not committed yet**; still to try on the iPad.
+- Sleep timer (Q1–Q8 below) is committed (a3a1e93); still to try on the iPad.
+- Spotify screen fixes (S1–S6 below) are built and tested in the browser with a fake Spotify; not committed yet; still to try on the iPad.
+- Backlog next: "photo files and moods" (grill first).
 
 ## Decisions made (grilling session, 2026-11-19) — all built
 1. **Lyrics screen only when the song has lyrics.** No lyrics → the Lyrics screen and its dot disappear.
@@ -43,6 +45,17 @@ _Written 2026-11-19 so a new chat can continue exactly where the last one stoppe
 - `GET /me/player/recently-played` (cursors), `GET /me/player/queue`, `PUT /me/player/play` with `context_uri` + `offset`.
 - `GET /albums/{id}/tracks` (bulk `GET /albums?ids=` removed). Search: max 10 results.
 - Design rules for the library view: full Spotify logo (≥70 px) + link back; artwork unaltered, ≤8 px corners.
+
+## Spotify screen fixes (grilling session, 2026-11-23) — built
+- S1. **No sideways sliding.** Song rows were 16 px too wide (`width:100%` plus a negative margin), so the list scrolled
+  sideways. Rows now fit; the list also has `overflow-x:hidden`.
+- S2. **"Show all" no longer resets.** Only the Up next section is redrawn when the queue arrives or the song changes;
+  playlists, albums and the scroll position stay.
+- S3. **Tap a song in Up next → jump to it**, like the Spotify app: one "next" per song before it. Rejected: play only that
+  song (loses the rest of the queue); play the context from an offset (the queue isn't always one playlist).
+- S4. **"Show all" ↔ "Show less".** Lists fold back to 12 each time the Spotify screen opens (not remembered).
+- S5. **Up next stays at 10 songs** (at most 10 skips; keeps playlists near the top).
+- S6. The tapped row lights up at once; Up next refreshes after the jump; a failure shows a short message.
 
 ## Sleep timer decisions (grilling session, 2026-11-19) — built
 - Q1 Moon button in the Spotify screen's top bar only. Q2 Off / 15 / 30 / 45 / 60 min.

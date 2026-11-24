@@ -8,7 +8,7 @@ A full-screen iPad photo frame with a Spotify music widget. Swipe **left and rig
 4. **Clock**: large time and date.
 
 Swipe **down** for the **Spotify screen**: big playback controls, volume, Up next, your playlists, saved albums and
-recently played. Swipe **up** to close it.
+recently played. Tap a song in Up next to jump to it. Swipe **up** to close it.
 
 In the Spotify screen, the **moon** button starts a **sleep timer** (15–60 minutes): the music fades out and pauses,
 the screen goes black, and the iPad locks by itself. Tap the black screen to come back.
