@@ -254,7 +254,7 @@ body:not(.mode-photos) .slot > *{pointer-events:none}
 /* Player — the whole cover on the left (never cropped, corners of at most 8 px), the song and its controls on the
    right. The right column is exactly as tall as the cover: song text at the top edge, controls at the bottom edge.
    Background: the cover's edge colours (--fill-l / --fill-r from artmode.js), darkened, so it changes per song. */
-.player-stage{--pl-pad:9vmin;--cover:min(calc(100dvh - 2 * var(--pl-pad)),46dvw);
+.player-stage{--pl-pad:9vmin;--cover:min(calc((100dvh - 2 * var(--pl-pad)) * .88),40dvw);
   display:flex;align-items:center;justify-content:center;gap:clamp(32px,5.5vw,88px);
   padding:var(--pl-pad) max(7vw,calc(env(safe-area-inset-right,0px) + 24px)) var(--pl-pad) max(7vw,calc(env(safe-area-inset-left,0px) + 24px));
   background:linear-gradient(135deg,var(--fill-l,#15161a),var(--fill-r,#050506))}
@@ -269,14 +269,26 @@ body:not(.mode-photos) .slot > *{pointer-events:none}
 .pl-logo img{display:block;width:clamp(70px,7vw,92px);height:auto}
 .pl-meta{margin-top:clamp(14px,2.4vh,28px);cursor:pointer;transition:opacity .4s var(--ease)}
 .pl-meta.swap{opacity:0}
-.pl-title{margin:0;font-weight:700;font-size:clamp(28px,3.6vw,52px);line-height:1.08;letter-spacing:-.022em;
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;text-wrap:balance}
+/* Title: one line. When it is too long it scrolls right-to-left in a loop (a second copy follows the first, so the
+   loop is seamless), pausing at the start of each pass. --run (distance) and --dur are set by playermode.js. */
+.pl-title{margin:0;font-weight:700;font-size:clamp(28px,3.6vw,52px);line-height:1.12;letter-spacing:-.022em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  padding-left:.6em;margin-left:-.6em}   /* reaches into the column gap, so the left fade never dims a still title */
+.pl-title-run{display:inline-block}
+.pl-title.scroll{text-overflow:clip;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 .6em,#000 calc(100% - 1.2em),transparent);
+          mask-image:linear-gradient(90deg,transparent,#000 .6em,#000 calc(100% - 1.2em),transparent)}
+.pl-title.scroll .pl-title-run{animation:pl-marquee var(--dur,12s) linear infinite}
+@keyframes pl-marquee{0%,18%{transform:translateX(0)}100%{transform:translateX(calc(-1 * var(--run,0px)))}}
+@media (prefers-reduced-motion:reduce){ .pl-title.scroll .pl-title-run{animation:none} }
 .pl-artist{margin:.45em 0 0;font-weight:500;font-size:clamp(19px,2.2vw,30px);line-height:1.2;color:var(--fg-2);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pl-album{margin:.3em 0 0;font-weight:400;font-size:clamp(15px,1.6vw,22px);line-height:1.25;color:var(--fg-3);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pl-album:empty{display:none}
-.pl-meta.full .pl-title{-webkit-line-clamp:unset;display:block}
+.pl-meta.full .pl-title{white-space:normal;overflow-wrap:anywhere;-webkit-mask-image:none;mask-image:none}
+.pl-meta.full .pl-title-run{display:inline;animation:none}
+.pl-meta.full .pl-title-copy{display:none}
 .pl-meta.full .pl-artist,.pl-meta.full .pl-album{white-space:normal}
 .pl-bottom{display:flex;flex-direction:column;gap:clamp(14px,2.4vh,26px)}
 .pl-progress .bar{height:28px}
@@ -299,7 +311,7 @@ body:not(.mode-photos) .slot > *{pointer-events:none}
 .player-stage:not(.empty) .pl-msg,.player-stage.empty .pl-art,.player-stage.empty .pl-side{display:none}
 /* Portrait: cover on top, the rest below it */
 @media (orientation:portrait){
-  .player-stage{--cover:min(calc(100dvw - 2 * max(7vw,24px)),50dvh);flex-direction:column;gap:clamp(24px,4vh,48px)}
+  .player-stage{--cover:min(calc((100dvw - 2 * max(7vw,24px)) * .88),44dvh);flex-direction:column;gap:clamp(24px,4vh,48px)}
   .pl-side{flex:none;width:var(--cover);max-width:none;height:auto}
   .pl-top{display:flex;flex-direction:column-reverse;gap:14px}
   .pl-meta{margin-top:0}

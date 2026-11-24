@@ -22,6 +22,34 @@ export function createPlayerMode({ playback, isPremiumBlocked }) {
   meta.addEventListener("click", toggleFull);
   meta.addEventListener("keydown", e => { if (e.key === "Enter") toggleFull(e); });
 
+  // Long titles scroll sideways on one line. If the title fits, it stands still. The run holds the title twice (the
+  // second copy is hidden from screen readers) so each pass ends exactly where the next begins.
+  const titleBox = $("plTitle"), run = $("plTitleRun");
+  const GAP = 1.6;   // space between the two copies, in em
+  function fitTitle() {
+    const text = run.dataset.text || "";
+    run.textContent = text;
+    titleBox.classList.remove("scroll");
+    if (!text || meta.classList.contains("full")) return;
+    const pad = parseFloat(getComputedStyle(titleBox).paddingLeft) || 0;   // the fade area left of the text
+    if (run.scrollWidth - (titleBox.clientWidth - pad) <= 1) return;
+    const copy = document.createElement("span");
+    copy.className = "pl-title-copy";
+    copy.setAttribute("aria-hidden", "true");
+    copy.style.paddingLeft = GAP + "em";
+    copy.textContent = text;
+    run.appendChild(copy);
+    const dist = copy.offsetWidth;   // gap + one copy: after this the second copy sits where the first began
+    titleBox.style.setProperty("--run", dist + "px");
+    titleBox.style.setProperty("--dur", (dist / 45 / 0.82).toFixed(1) + "s");   // ~45 px/s while moving; 18% is the pause
+    titleBox.classList.add("scroll");
+  }
+  let fitQueued = 0;
+  const queueFit = () => { cancelAnimationFrame(fitQueued); fitQueued = requestAnimationFrame(fitTitle); };
+  new ResizeObserver(queueFit).observe(titleBox);
+  if (document.fonts) document.fonts.ready.then(queueFit);
+  meta.addEventListener("click", queueFit);
+
   const seek = createSeekBar(
     { bar: $("plBar"), fill: $("plBarFill"), knob: $("plBarKnob"), elapsed: $("plElapsed"), remaining: $("plRemaining") },
     playback, isPremiumBlocked);
@@ -37,10 +65,11 @@ export function createPlayerMode({ playback, isPremiumBlocked }) {
     const id = track ? track.id : null;
     if (id === trackId) return;
     const apply = () => {
-      $("plTitle").textContent = track ? track.title : "";
+      run.dataset.text = track ? track.title : "";
       $("plArtist").textContent = track ? track.artists : "";
       $("plAlbum").textContent = track ? track.album : "";
       meta.classList.remove("swap", "full");
+      fitTitle();
     };
     clearTimeout(swapTimer);
     if (trackId === undefined || !track) apply();
