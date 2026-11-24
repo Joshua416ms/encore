@@ -27,7 +27,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           persist-credentials: false   # don't leave a Git token lying around in the build machine
 
@@ -35,7 +35,7 @@ jobs:
         uses: actions/configure-pages@v5
 
       - name: Package the app folder
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: app
 
