@@ -12,7 +12,7 @@ _Last updated: 2026-11-18._
 | 4 | `spotify/client.js` | Sends `PUT https://api.spotify.com/v1/me/player/play` with `Authorization: Bearer …` |
 | 5 | Spotify | Checks the token, scope and Premium; tells your device to play |
 | 6 | back in `playback.js` | Success → confirm with a fresh `GET /me/player` 450 ms later. Failure → restore old state and show the message |
-| 7 | `ui/nowplaying.js` | `render()` redraws the widget |
+| 7 | `ui/nowplaying.js` | `render()` redraws the widget; `main.js` then wakes the progress clock (`ui/progressclock.js`), which repaints the position bars |
 
 ## 2. Swiping between display modes
 

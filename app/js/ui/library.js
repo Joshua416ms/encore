@@ -8,6 +8,7 @@
 // Spotify only shares the songs of playlists you OWN or COLLABORATE on; others show cover, name and Play only.
 // Every text from Spotify is inserted with textContent (never as HTML), and links/images are checked first.
 import { statusMessage, formatTime } from "./nowplaying.js";
+import { createMover, slideFill } from "./progressclock.js";
 
 const $ = id => document.getElementById(id);
 const STALE_MS = 10 * 60 * 1000;   // playlists/albums/history are re-fetched when older than this
@@ -53,9 +54,10 @@ function cover(url, cls = "lib-cover") {
   return box;
 }
 
-export function createLibrary({ client, playback, toast, missingScopes, onReconnect }) {
+export function createLibrary({ client, playback, clock, toast, missingScopes, onReconnect }) {
   const panel = $("library"), main = $("libMain"), detail = $("libDetail"), scroller = $("libScroll");
-  let open = false, cache = null, loadedAt = 0, me = null, detailFor = null, volumeTouched = 0, progressTimer = null;
+  let open = false, cache = null, loadedAt = 0, me = null, detailFor = null, volumeTouched = 0;
+  const moveBar = createMover([[$("libBarFill"), slideFill]]);
 
   /* ---------- open / close ---------- */
   function show() {
@@ -66,8 +68,8 @@ export function createLibrary({ client, playback, toast, missingScopes, onReconn
     document.body.classList.add("lib-open");
     render(playback.state);
     load();
-    clearInterval(progressTimer);
-    progressTimer = setInterval(() => { if (!document.hidden) renderProgress(); }, 500);
+    clock.wake();
+    playback.hurry();   // this screen shows the position: poll often again, starting now
   }
   function hide() {
     if (!open) return;
@@ -75,8 +77,9 @@ export function createLibrary({ client, playback, toast, missingScopes, onReconn
     panel.classList.remove("open");
     panel.setAttribute("aria-hidden", "true");
     document.body.classList.remove("lib-open");
-    clearInterval(progressTimer);
+    clock.wake();
   }
+  clock.add({ active: () => open, paint: renderProgress });
   $("libClose").addEventListener("click", e => { e.stopPropagation(); hide(); });
   panel.addEventListener("click", e => e.stopPropagation());   // taps inside don't reach the "show controls" handler
 
@@ -114,11 +117,11 @@ export function createLibrary({ client, playback, toast, missingScopes, onReconn
     vol.disabled = !canVolume;
     $("libVolumeRow").classList.toggle("disabled", !canVolume);
     if (canVolume && Date.now() - volumeTouched > 2500) vol.value = dev.volume;  // don't fight your finger
-    renderProgress();
   }
-  function renderProgress() {
+  // Repainted by the shared progress clock (progressclock.js) while this screen is open.
+  function renderProgress(next) {
     const s = playback.state, dur = s && s.track ? s.track.duration : 0, pos = playback.position();
-    $("libBarFill").style.width = dur ? `${(pos / dur) * 100}%` : "0%";
+    moveBar(pos, dur, next, s && s.track ? s.track.id : null);
     $("libElapsed").textContent = formatTime(pos);
     $("libRemaining").textContent = dur ? `-${formatTime(dur - pos)}` : "0:00";
   }

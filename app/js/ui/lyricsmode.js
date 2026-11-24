@@ -7,7 +7,7 @@ import { getLyrics } from "../lyrics/lrclib.js";
 
 const $ = id => document.getElementById(id);
 
-export function createLyricsMode({ playback, settings, onAvailability }) {
+export function createLyricsMode({ playback, clock, settings, onAvailability }) {
   const view = $("lyricsView"), list = $("lyricsLines");
   let trackId, data = { status: "none" }, current = -2, ticket = 0, has = false, loading = false;
 
@@ -59,24 +59,34 @@ export function createLyricsMode({ playback, settings, onAvailability }) {
     return ans;
   }
 
+  const onScreen = () => document.body.classList.contains("mode-lyrics") && !document.hidden;
+
+  // Synced lyrics: no polling. Each update sets one timer for the moment the next line starts.
+  let lineTimer = null;
   function tick(force) {
-    if (loading || (!force && !document.body.classList.contains("mode-lyrics"))) return;
+    clearTimeout(lineTimer);
+    if (loading || (!force && !onScreen())) return;
     const pos = playback.position() + (settings.lyricsOffset || 0) * 1000;
     if (data.status === "synced") {
       const i = lineAt(pos);
-      if (i === current && !force) return;
-      current = i;
-      [...list.children].forEach((li, k) => { li.classList.toggle("on", k === i); li.classList.toggle("past", k < i); });
-      const li = list.children[Math.max(0, i)];
-      if (li) list.style.transform = `translateY(${Math.round(view.clientHeight * 0.42 - (li.offsetTop + li.offsetHeight / 2))}px)`;
+      if (i !== current || force) {
+        current = i;
+        [...list.children].forEach((li, k) => { li.classList.toggle("on", k === i); li.classList.toggle("past", k < i); });
+        const li = list.children[Math.max(0, i)];
+        if (li) list.style.transform = `translateY(${Math.round(view.clientHeight * 0.42 - (li.offsetTop + li.offsetHeight / 2))}px)`;
+      }
+      const s = playback.state, nextLine = data.lines[i + 1];
+      if (nextLine && s && s.isPlaying && onScreen()) lineTimer = setTimeout(() => tick(false), Math.max(50, nextLine.t - pos + 30));
     } else if (data.status === "plain") {
-      // No timestamps: scroll through the text in step with the song's progress.
+      // No timestamps: scroll through the text in step with the song's progress (once a second, via the clock).
       const s = playback.state, dur = s && s.track ? s.track.duration : 0;
       const ratio = dur ? Math.min(1, Math.max(0, pos / dur)) : 0;
       list.style.transform = `translateY(${Math.round(view.clientHeight * 0.3 - ratio * Math.max(0, list.scrollHeight - view.clientHeight * 0.4))}px)`;
     }
   }
-  setInterval(() => { if (!document.hidden) tick(false); }, 200);
+  clock.add({ active: () => data.status === "plain" && !loading && onScreen(), paint: () => tick(false) });
 
-  return { update, refresh: () => tick(true), get has() { return has; } };
+  // refresh: redraw everything (screen shown, offset changed). sync: after a poll, seek or pause — move on if needed
+  // and set the next line's timer again from the corrected position.
+  return { update, refresh: () => tick(true), sync: () => tick(false), get has() { return has; } };
 }

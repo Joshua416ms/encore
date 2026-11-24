@@ -27,6 +27,7 @@ import { createArtMode } from "./ui/artmode.js";
 import { createPlayerMode } from "./ui/playermode.js";
 import { createLyricsMode } from "./ui/lyricsmode.js";
 import { createLibrary } from "./ui/library.js";
+import { createProgressClock } from "./ui/progressclock.js";
 import { createSleepTimer } from "./sleep.js";
 import { createSleepButton } from "./ui/sleepbutton.js";
 
@@ -114,6 +115,8 @@ function updateEmpty() {
 
 const client = createClient(clientId);
 // onChange only fires after playback.start(), by which time nowPlaying exists.
+// The Player and Lyrics screens and the Spotify screen show the song position: poll often there, calmly elsewhere.
+const showsPosition = () => ["mode-player", "mode-lyrics", "lib-open"].some(c => document.body.classList.contains(c));
 const playback = createPlayback(client, (state, err) => {
   if (err && err.reason === "NOT_CONNECTED" && !isConnected()) {
     setConnected(false);
@@ -123,8 +126,12 @@ const playback = createPlayback(client, (state, err) => {
   nowPlaying.render(state, err);
   player.render(state, err);
   library.render(state);
+  progress.wake();     // repaint the position bars from the new state
+  lyrics.sync();
   if (settingsUI.isOpen()) settingsUI.sync();
-});
+}, showsPosition);
+// One shared 1 s clock for the position bars (see ui/progressclock.js).
+const progress = createProgressClock(playback);
 
 // Accent colour (feature 3): from the album art, Spotify green, or white.
 let artAccent = null;
@@ -134,15 +141,16 @@ function applyAccent() {
   else root.style.removeProperty("--accent");
 }
 const artMode = createArtMode({ onAccent: c => { artAccent = c; applyAccent(); } });
-const lyrics = createLyricsMode({ playback, settings, onAvailability: lyricsAvailability });
+const lyrics = createLyricsMode({ playback, clock: progress, settings, onAvailability: lyricsAvailability });
 let lastTrack = null;
 const nowPlaying = createNowPlaying(playback, {
+  clock: progress,
   onTrack: t => { lastTrack = t; artMode.update(t, true); player.update(t, true); lyrics.update(t); library.onTrack(); },
 });
-const player = createPlayerMode({ playback, isPremiumBlocked: () => nowPlaying.premiumBlocked });
+const player = createPlayerMode({ playback, clock: progress, isPremiumBlocked: () => nowPlaying.premiumBlocked });
 
 // The Spotify screen (swipe down). Reconnecting is needed once for sign-ins made before it existed.
-const library = createLibrary({ client, playback, toast, missingScopes, onReconnect: () => openConnect() });
+const library = createLibrary({ client, playback, clock: progress, toast, missingScopes, onReconnect: () => openConnect() });
 
 /* ---------- lyrics availability ----------
    The Lyrics screen only exists while the song has lyrics. If you were on it and the next song has none, Encore
@@ -170,6 +178,8 @@ const modes = createModes({
     if (source === "user" || mode !== "artwork") returnToLyrics = false;
     if (requested === "lyrics" && mode === "artwork" && settings.lyricsOn) returnToLyrics = true;
     if (mode === "lyrics") lyrics.refresh();
+    progress.wake();                                     // start or stop the bar ticks for the new screen
+    if (showsPosition()) playback.hurry();               // polling speeds up again: fetch fresh state now
   },
 });
 
@@ -184,6 +194,7 @@ const settingsUI = createSettings({
     if (key === "kbOn" || key === "kbStrength") syncCollection(true); // re-show so the new motion applies now
     if (key === "nightMode") applyNight();
     if (key === "wakeOn") { if (wakeWanted()) requestWake(); else releaseWake(); }
+    progress.wake();                                     // e.g. the widget's progress bar was switched on
   },
   onOpen(open) { if (open) photos.render(); else photos.release(); },
   onConnect: () => openConnect(),

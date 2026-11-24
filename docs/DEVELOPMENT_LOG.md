@@ -141,3 +141,20 @@
 - Tested in the browser with a sample photo: background baked (360×225, `filter: none`), no element with a live
   backdrop blur on screen, side-by-side screenshots of baked vs. old CSS blur look the same, no console errors.
 - Not tested yet: the iPad itself (look of the widget, and how much battery it saves).
+
+**Battery: fewer timer wake-ups, calmer polling (2026-11-24)**
+- Before: the widget and Player seek bars each repainted 4×/s (and read `offsetParent`), the Spotify screen's bar
+  2×/s, and the lyrics checked 5×/s even when the Lyrics screen wasn't shown.
+- Now `ui/progressclock.js` is one shared clock: it ticks once a second, just after the song's whole seconds, and only
+  while a song plays and a bar (or plain lyrics) is on screen. Between ticks a 1 s linear transition moves the bar.
+  Bars move with `transform` only (`.bar-fill` slides in; the knob sits on a sliding `.bar-rail`), so no layout work.
+  `createMover` jumps on a seek, new song or a bar that just appeared, and absorbs small poll corrections smoothly
+  (it never steps back by a little).
+- Synced lyrics: one `setTimeout` to the next line's start, set again after every poll, seek or pause.
+- Polling (`spotify/playback.js`): 3 s while playing only on the Player, Lyrics and Spotify screens; 10 s elsewhere.
+  Opening one of those screens polls at once (`playback.hurry()`) if the last answer is over 2 s old.
+- Tested in the browser with a fake Spotify: bars move smoothly and the labels match the song; pause holds, resume
+  moves, +10 s seek jumps; the new song is fetched 0.5 s after the old one ends; Clock screen polls every 10 s,
+  Player every 3 s, and switching to Player or opening the Spotify screen polls at once; lyric lines change within
+  ~50 ms of their time; the widget bar (switched off in settings) doesn't tick. No console errors from the app.
+- Not tested yet: the iPad itself.

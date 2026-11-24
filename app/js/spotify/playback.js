@@ -2,7 +2,9 @@
 // Spotify offers no push updates for the Web API, so this polls (faster while playing, slower when idle,
 // never while the app is hidden) and moves the progress bar locally between polls.
 
-const POLL_PLAYING = 3000;
+const POLL_PLAYING = 3000;        // while a screen shows the song position (Player, Lyrics, Spotify screen)
+const POLL_PLAYING_CALM = 10000;  // while playing but no screen shows it: saves battery and requests.
+                                  // Song changes still show promptly: schedule() polls just after the song should end.
 const POLL_IDLE = 8000;
 const POLL_BACKOFF = 15000;
 
@@ -53,7 +55,8 @@ function normalize(p) {
   };
 }
 
-export function createPlayback(client, onChange) {
+/** wantsFast(): true while a screen shows the song position, so pauses and seeks from other devices show quickly. */
+export function createPlayback(client, onChange, wantsFast = () => true) {
   let state = null;
   let status = null;     // last SpotifyError, or null when healthy
   let syncedAt = 0;
@@ -73,7 +76,7 @@ export function createPlayback(client, onChange) {
     clearTimeout(timer);
     if (!running) return;
     if (ms == null) {
-      ms = state && state.isPlaying ? POLL_PLAYING : POLL_IDLE;
+      ms = state && state.isPlaying ? (wantsFast() ? POLL_PLAYING : POLL_PLAYING_CALM) : POLL_IDLE;
       if (state && state.isPlaying && state.track) {
         const left = state.track.duration - position();
         if (left > 0 && left < ms) ms = Math.max(600, left + 500); // catch the song change promptly
@@ -133,6 +136,8 @@ export function createPlayback(client, onChange) {
     start() { if (running) return; running = true; sync(); },
     stop() { running = false; clearTimeout(timer); },
     refresh: () => sync(),
+    /** A screen that shows the position just opened: poll now if the last answer is more than 2 s old. */
+    hurry() { if (running && !inflight && performance.now() - syncedAt > 2000) sync(); },
 
     togglePlay() {
       if (state && state.isPlaying) return command(() => client.pause(), s => { s.isPlaying = false; });

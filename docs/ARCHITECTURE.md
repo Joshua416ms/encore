@@ -50,6 +50,7 @@ or, when it's closed, goes to the separate Nightstand app (which comes back with
 | `ui/library.js` | Spotify screen: now playing with large controls and volume; Up next, playlists, saved albums, recently played; song lists | `client`, `playback` |
 | `ui/layout.js` | Widget size (CSS variables), free position of the dock (fractions `wX`/`wY`), press-and-hold dragging, +/− size, clock placement, readability tint | `settings` |
 | `ui/nowplaying.js` | Widget contents and Spotify buttons; exports the shared `crossfader`, `paintControls` and `createSeekBar` | `playback` |
+| `ui/progressclock.js` | One shared 1 s clock for the position bars and plain lyrics; runs only while a song plays and a bar is on screen. `createMover` moves a bar with a CSS transition between ticks | `playback` |
 | `ui/playermode.js` | Player screen: cover, song text, seek bar and controls (reuses the helpers from `nowplaying.js`) | `playback`, `nowplaying` |
 | `ui/lyricsmode.js` | Lyrics screen: renders lines, highlights the current one; reports whether the song has lyrics (`has`) | `lyrics/lrclib.js`, `playback` |
 | `lyrics/lrclib.js` | Looks up lyrics on LRCLIB, parses timestamps, caches results on the device | LRCLIB |
@@ -94,5 +95,6 @@ or, when it's closed, goes to the separate Nightstand app (which comes back with
 | Sleep timer's end time lives in localStorage | Encore and Nightstand are separate pages; a JavaScript timer would die when you swipe between them | Both pages check the clock every second while a timer runs |
 | Screen stays on while a sleep timer runs, even with "Keep screen on" off | A locked iPad freezes the page, so the timer couldn't stop the music | The screen is on until the timer ends, then the iPad locks after its Auto-Lock time |
 | Nightstand follows Encore's "Keep screen on" switch | One setting for both apps | Nightstand has no switch of its own |
-| Polling Spotify | The Web API has no push updates | Up to ~3 s delay for changes made elsewhere |
+| Polling Spotify | The Web API has no push updates | Up to ~3 s delay for changes made elsewhere on the Player, Lyrics and Spotify screens; up to ~10 s on the others (song changes still show within ~0.5 s: a poll is set for just after the song should end) |
+| Position bars tick once a second (shared clock) and a linear CSS transition moves them in between; synced lyrics set one timer for the next line | Fewer CPU wake-ups: before, 2 bars repainted 4×/s, the Spotify screen 2×/s and lyrics checked 5×/s, even off screen | Time labels change once a second (on the song's whole seconds, so on time); bars only move with `transform` |
 | System font only | Consistent typography; removed the Google Fonts request | — |

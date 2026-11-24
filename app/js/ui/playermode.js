@@ -7,7 +7,7 @@ import { crossfader, createSeekBar, paintControls, statusMessage } from "./nowpl
 
 const $ = id => document.getElementById(id);
 
-export function createPlayerMode({ playback, isPremiumBlocked }) {
+export function createPlayerMode({ playback, isPremiumBlocked, clock }) {
   const stage = $("playerStage"), meta = $("plMeta");
   const cover = crossfader($("plArtA"), $("plArtB"));
   let trackId, swapTimer;
@@ -51,8 +51,8 @@ export function createPlayerMode({ playback, isPremiumBlocked }) {
   meta.addEventListener("click", queueFit);
 
   const seek = createSeekBar(
-    { bar: $("plBar"), fill: $("plBarFill"), knob: $("plBarKnob"), elapsed: $("plElapsed"), remaining: $("plRemaining") },
-    playback, isPremiumBlocked);
+    { bar: $("plBar"), fill: $("plBarFill"), rail: $("plBarRail"), elapsed: $("plElapsed"), remaining: $("plRemaining") },
+    playback, isPremiumBlocked, clock);
 
   /** Called whenever the playing item changes. track = normalized track from playback.js, or null. */
   function update(track, connected) {
@@ -89,7 +89,6 @@ export function createPlayerMode({ playback, isPremiumBlocked }) {
     if (!msg && premium) msg = statusMessage({ reason: "PREMIUM_REQUIRED" });
     if (!msg && restricted) msg = statusMessage({ reason: "RESTRICTED" });
     $("plStatus").textContent = msg;
-    seek.paint();
   }
 
   return { update, render };

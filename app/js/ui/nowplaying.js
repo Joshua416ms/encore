@@ -1,4 +1,6 @@
 // Renders the Now Playing screen from the playback state and wires its controls.
+import { createMover, slideFill } from "./progressclock.js";
+
 const $ = id => document.getElementById(id);
 
 export function formatTime(ms) {
@@ -63,9 +65,8 @@ export function createNowPlaying(playback, opts = {}) {
   $("meta").addEventListener("keydown", e => { if (e.key === "Enter") $("meta").classList.toggle("full"); });
 
   const isLocked = () => premiumBlocked;
-  const seek = createSeekBar({ bar: $("bar"), fill: $("barFill"), knob: $("barKnob"), elapsed: $("elapsed"), remaining: $("remaining") },
-    playback, isLocked);
-  const paintProgress = seek.paint;
+  const seek = createSeekBar({ bar: $("bar"), fill: $("barFill"), rail: $("barRail"), elapsed: $("elapsed"), remaining: $("remaining") },
+    playback, isLocked, opts.clock);
 
   /* ---------- render from state ---------- */
   function render(state, err) {
@@ -111,8 +112,7 @@ export function createNowPlaying(playback, opts = {}) {
     if (!msg && !state) msg = "No Spotify device is active. Start playing in the Spotify app, or pick a device in Settings.";
     $("status").hidden = !msg;
     $("status").textContent = msg;
-
-    paintProgress();
+    // The bar itself is repainted by the progress clock (main.js wakes it after every update).
   }
 
   return { render, setPremiumBlocked(v) { premiumBlocked = v; }, get premiumBlocked() { return premiumBlocked; } };
@@ -138,10 +138,12 @@ export function paintControls({ play, prev, next, shuffle, repeat }, state, lock
   repeat.setAttribute("aria-label", `Repeat: ${mode === "track" ? "this song" : mode === "context" ? "on" : "off"}`);
 }
 
-/** A song-position bar you can tap or drag to seek, with elapsed and remaining time. It repaints itself 4× a second
- *  from playback.position() (a local clock between Spotify polls). isLocked() = Premium missing. */
-export function createSeekBar({ bar, fill, knob, elapsed, remaining }, playback, isLocked) {
+/** A song-position bar you can tap or drag to seek, with elapsed and remaining time. The shared progress clock
+ *  (progressclock.js) repaints it once a second while it's on screen; CSS moves it smoothly in between.
+ *  isLocked() = Premium missing. */
+export function createSeekBar({ bar, fill, rail, elapsed, remaining }, playback, isLocked, clock) {
   let dragging = false, dragRatio = 0;
+  const move = createMover([[fill, slideFill], [rail, slideFill]]);
 
   function canSeek() {
     const s = playback.state;
@@ -155,10 +157,10 @@ export function createSeekBar({ bar, fill, knob, elapsed, remaining }, playback,
     if (!canSeek()) return;
     dragging = true; dragRatio = ratioAt(e.clientX);
     bar.classList.add("drag"); bar.setPointerCapture(e.pointerId);
-    paint();
+    paint(0);
     e.stopPropagation();
   });
-  bar.addEventListener("pointermove", e => { if (dragging) { dragRatio = ratioAt(e.clientX); paint(); } });
+  bar.addEventListener("pointermove", e => { if (dragging) { dragRatio = ratioAt(e.clientX); paint(0); } });
   bar.addEventListener("pointerup", e => {
     if (!dragging) return;
     dragging = false; bar.classList.remove("drag");
@@ -166,7 +168,7 @@ export function createSeekBar({ bar, fill, knob, elapsed, remaining }, playback,
     if (s && s.track) playback.seek(dragRatio * s.track.duration);
     e.stopPropagation();
   });
-  bar.addEventListener("pointercancel", () => { dragging = false; bar.classList.remove("drag"); });
+  bar.addEventListener("pointercancel", () => { dragging = false; bar.classList.remove("drag"); clock.wake(); });
   bar.addEventListener("click", e => e.stopPropagation());
   bar.addEventListener("keydown", e => {
     if (!canSeek()) return;
@@ -174,18 +176,17 @@ export function createSeekBar({ bar, fill, knob, elapsed, remaining }, playback,
     if (step) { e.preventDefault(); playback.seek(playback.position() + step); }
   });
 
-  function paint() {
+  /** next = ms until the progress clock's next tick (0 = standing still). */
+  function paint(next) {
     const s = playback.state;
     const dur = s && s.track ? s.track.duration : 0;
     const pos = dragging ? dragRatio * dur : playback.position();
-    const pct = dur ? Math.min(100, (pos / dur) * 100) : 0;
-    fill.style.width = pct + "%";
-    knob.style.left = pct + "%";
-    bar.setAttribute("aria-valuenow", Math.round(pct));
+    move(pos, dur, next, s && s.track ? s.track.id : null, dragging);
+    bar.setAttribute("aria-valuenow", dur ? Math.round(Math.min(100, (pos / dur) * 100)) : 0);
     elapsed.textContent = formatTime(dur ? pos : 0);
     remaining.textContent = dur ? "-" + formatTime(dur - pos) : "0:00";
   }
-  setInterval(() => { if (!document.hidden && bar.offsetParent !== null) paint(); }, 250);
+  clock.add({ active: () => !dragging && bar.offsetParent !== null, paint });
 
-  return { bar, paint, canSeek };
+  return { bar, canSeek };
 }

@@ -176,8 +176,11 @@ body:not(.mode-photos) .dock{opacity:0;pointer-events:none}
 .w-progress{grid-area:prog;min-width:0;align-self:end}
 .bar{position:relative;height:calc(18px * var(--s));display:flex;align-items:center;cursor:pointer;touch-action:none}
 .bar-track{position:relative;width:100%;height:calc(4px * var(--s));border-radius:2px;background:var(--fg-4);overflow:hidden;transition:height .2s}
-.bar-fill{position:absolute;inset:0 auto 0 0;width:0;background:var(--accent);border-radius:2px}
-.bar-knob{position:absolute;top:50%;left:0;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:#fff;
+/* Fill and knob move with transform only (progressclock.js): the fill is full width and slides in from the left;
+   the knob sits at the right end of a full-width rail that slides the same way. No layout work per frame. */
+.bar-fill{position:absolute;inset:0;background:var(--accent);border-radius:2px;transform:translateX(-100%)}
+.bar-rail{position:absolute;inset:0;pointer-events:none;transform:translateX(-100%)}
+.bar-knob{position:absolute;top:50%;left:100%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:#fff;
   box-shadow:0 1px 6px rgba(0,0,0,.4);transform:scale(0);transition:transform .2s}
 .bar:hover .bar-knob,.bar.drag .bar-knob,.bar:focus-visible .bar-knob{transform:scale(1)}
 .bar.drag .bar-track{height:6px}
@@ -459,7 +462,6 @@ a.btn{text-decoration:none}
 /* ======================= Added: lyrics, night mode, pan & zoom, accent ======================= */
 
 /* ---------- accent colour fades when the song changes ---------- */
-.bar-fill{transition:background-color 1s var(--ease)}
 .ctl.extra{transition:color 1s var(--ease),transform .15s,opacity .2s}
 
 /* ---------- slow pan & zoom (values per photo from wallpapers/engine.js; never crops — see kenBurns()) ---------- */

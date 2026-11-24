@@ -18,6 +18,7 @@ _Last updated: 2026-11-19._
 │   │   ├── spotify/client.js     Spotify Web API requests and error handling
 │   │   ├── spotify/playback.js   Playback state, polling, playback commands
 │   │   ├── ui/nowplaying.js      Fills the widget from playback state; Spotify buttons
+│   │   ├── ui/progressclock.js   Shared 1 s clock that moves the song-position bars
 │   │   ├── ui/layout.js          Widget size/position, corners, drag, +/− size, clock placement
 │   │   ├── ui/modes.js           Display modes (photos, artwork, lyrics, clock), dots, swipe gestures
 │   │   ├── ui/library.js         Spotify screen (swipe down): controls, volume, queue, playlists, albums, history
