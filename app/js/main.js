@@ -8,7 +8,8 @@
 //   nowPlaying ──onTrack(track)──▶ main ──▶ artMode.update (cover; reports its accent colour back)
 //                                       └─▶ player.update  (Player screen: cover and song text)
 //                                       └─▶ lyrics.update  (LRCLIB lyrics, only when turned on)
-//   modes ──onVertical("down"|"up")──▶ main ──▶ library.open/close (Spotify screen) or go to Nightstand
+//   modes ──onVertical("down"|"up")──▶ main ──▶ library.open/close (Spotify screen) or slide up the Nightstand sheet
+//   Nightstand iframe ──postMessage {close}──▶ main ──▶ slide the sheet down; main ──{shown, asleep}──▶ Nightstand
 //   every minute ──▶ night mode on/off, collection for this time of day
 //   sleep (js/sleep.js) ──onSleep──▶ main ──▶ black sleep screen, stop polling, let the iPad lock
 //
@@ -329,6 +330,7 @@ const sleep = createSleepTimer({
     library.close(); settingsUI.close();
     $("sleepScreen").classList.add("on");
     releaseWake(); engine.stop(); playback.stop();
+    tellNightstand();                                    // Nightstand lets go of the screen too
   },
 });
 const sleepButton = createSleepButton(sleep);
@@ -337,7 +339,8 @@ function wakeUp(e) {
   if (!asleep) return;
   asleep = false;
   $("sleepScreen").classList.remove("on");
-  tickClock(); requestWake(); engine.start();
+  tickClock(); requestWake(); if (!nsUp()) engine.start();
+  tellNightstand();
   if (isConnected()) playback.start();
 }
 $("sleepScreen").addEventListener("click", wakeUp);
@@ -347,7 +350,7 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
     tickClock();
     if (asleep) return;                                  // stays black until you tap
-    requestWake(); engine.start();
+    requestWake(); if (!nsUp()) engine.start();
     layout.apply();   // the iPad may have rotated while the app was in the background: re-fit the widget
     applyNight(); syncCollection(); autoMode.evaluate();   // time has passed: night / time of day may have changed
     if (isConnected()) playback.start();
@@ -372,10 +375,40 @@ function makeTouchIcon() {
   } catch {}
 }
 
-/* ---------- switching between Encore and Nightstand ----------
-   Swipe UP goes to Nightstand; swiping DOWN there comes back. The Home Screen icon reopens the app used last. */
-ls.set("standby.app", "encore");
-function goNightstand() { ls.set("standby.app", "nightstand"); location.assign("nightstand/"); }
+/* ---------- Nightstand sheet ----------
+   Nightstand is an iframe (nightstand/?embed=1) loaded at start and kept on top of Encore. Swipe UP here → it slides up
+   from the bottom (CSS :root.ns-up); swipe DOWN in Nightstand → it posts {type:"nightstand", close:true} and slides
+   back down. Encore keeps running underneath (Auto mode still moves to Player when music starts), but its wallpaper
+   slideshow rests while covered, and Nightstand rests its clock and slideshow while it is down ({shown}).
+   standby.app remembers which one was up, so the Home Screen icon reopens it (route.js). */
+const nsFrame = $("nsFrame");
+const nsUp = () => document.documentElement.classList.contains("ns-up");
+function tellNightstand() {
+  try { nsFrame.contentWindow.postMessage({ type: "encore", shown: nsUp(), asleep }, location.origin); } catch {}
+}
+function setNightstand(up) {
+  const root = document.documentElement;
+  root.classList.toggle("ns-up", up);
+  ls.set("standby.app", up ? "nightstand" : "encore");
+  nsFrame.setAttribute("aria-hidden", String(!up));
+  // Encore can't be tapped or typed into while covered: everything except the sheet and the sleep screen is inert.
+  for (const el of document.body.children) if (el !== nsFrame && el.id !== "sleepScreen" && el.tagName !== "SCRIPT") el.inert = up;
+  tellNightstand();
+  if (up) {
+    document.body.classList.remove("ui");
+    engine.stop();
+    try { nsFrame.contentWindow.focus(); } catch {}       // keys go to Nightstand
+  } else {
+    if (!asleep && !document.hidden) engine.start();
+    nsFrame.blur(); window.focus();
+  }
+}
+function goNightstand() { setNightstand(true); }
+window.addEventListener("message", e => {
+  if (e.source !== nsFrame.contentWindow || e.origin !== location.origin) return;
+  if (e.data && e.data.type === "nightstand" && e.data.close && nsUp()) setNightstand(false);
+});
+nsFrame.addEventListener("load", tellNightstand);         // it may load after start() ran
 
 /* ---------- start ---------- */
 /* ---------- every minute: night mode and the time-of-day collection ---------- */
@@ -388,6 +421,8 @@ setInterval(() => { if (!document.hidden) { applyNight(); syncCollection(); } },
   layout.apply();
   tickClock();
   makeTouchIcon();
+  if (nsUp()) setNightstand(true);       // reopened on Nightstand (route.js): the sheet is already up
+  else ls.set("standby.app", "encore");
   requestWake();
   const id = clientId();
   const result = await handleRedirect(id);   // always runs, so a ?code= never lingers in the address bar
@@ -396,7 +431,7 @@ setInterval(() => { if (!document.hidden) { applyNight(); syncCollection(); } },
   else setConnected(false);
 
   await syncCollection(true);   // the collection for this time of day (or your active one)
-  engine.start();
+  if (!nsUp()) engine.start();
   updateEmpty();
   autoMode.evaluate();
 })();

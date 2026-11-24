@@ -1,6 +1,10 @@
 (() => {
   const $ = id => document.getElementById(id);
   const root = document.documentElement;
+  // Inside Encore (an iframe at nightstand/?embed=1, Encore's main.js › Nightstand sheet), or on its own (old bookmarks).
+  // Embedded, Encore tells us when the sheet is up ({type:"encore", shown, asleep}); while it's down we rest.
+  const embedded = window.parent !== window && new URLSearchParams(location.search).has("embed");
+  let shown = !embedded;
 
   /* ---------- settings ---------- */
   const ACCENTS = [
@@ -121,7 +125,8 @@
     const r = () => Math.round((Math.random() * 2 - 1) * 8);
     ["bigWrap", "wxWrap", "calWrap", "photoWrap"].forEach(id => { $(id).style.transform = `translate(${r()}px,${r()}px)`; });
   }
-  function loop() { tick(); setTimeout(loop, 1000 - (Date.now() % 1000) + 5); }
+  // While the sheet is down, only once a minute (time, date and calendar stay right, so it lands complete).
+  function loop() { if (shown || new Date().getSeconds() === 0) tick(); setTimeout(loop, 1000 - (Date.now() % 1000) + 5); }
 
   /* ---------- pager dots + tap-to-show controls ---------- */
   const pager = $("pager"), dots = [...$("dots").children];
@@ -170,8 +175,10 @@
      timer runs: a locked iPad freezes this page, so the timer could not stop the music. */
   let wake = null, asleep = false, sleepTimer = null;
   const wakeSwitchOn = () => { try { return JSON.parse(localStorage.getItem("encore.settings") || "{}").wakeOn !== false; } catch (e) { return true; } };
-  const timerOn = () => !!(sleepTimer && sleepTimer.active());
-  const wakeWanted = () => !asleep && (wakeSwitchOn() || timerOn());
+  const timerOn = () => embedded
+    ? Number(localStorage.getItem("encore.sleepAt")) > Date.now()   // Encore runs the timer; we only read it
+    : !!(sleepTimer && sleepTimer.active());
+  const wakeWanted = () => shown && !asleep && (wakeSwitchOn() || timerOn());
   function setWake(ok, text, note) {
     $("wakeStatus").classList.toggle("ok", ok);
     $("wakeStatus").querySelector("span").textContent = text;
@@ -188,7 +195,7 @@
       return;
     }
     const why = () => timerOn() && !wakeSwitchOn()
-      ? "On until the sleep timer ends at " + new Date(sleepTimer.endsAt()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + ". Then the iPad locks by itself."
+      ? "On until the sleep timer ends at " + new Date(embedded ? Number(localStorage.getItem("encore.sleepAt")) : sleepTimer.endsAt()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + ". Then the iPad locks by itself."
       : "Nightstand is keeping the iPad awake while it's open.";
     if (wake) { setWake(true, "Screen will stay on", why()); return; }
     try {
@@ -208,7 +215,8 @@
   /* ---------- sleep timer (started in Encore's Spotify screen; shared code in ../js/sleep.js) ----------
      The timer keeps running here. When it ends, the music has already faded and paused; the screen goes black and
      Nightstand lets go of the screen so the iPad locks. A tap brings Nightstand back. */
-  import("../js/sleep.js").then(m => {
+  // Embedded, Encore runs the one timer and shows its own sleep screen over the sheet; it tells us via {asleep}.
+  if (!embedded) import("../js/sleep.js").then(m => {
     sleepTimer = m.createSleepTimer({
       onChange: () => requestWake(),
       onSleep() { asleep = true; closeSheet(); $("sleepScreen").classList.add("on"); releaseWake(); },
@@ -259,10 +267,10 @@
     img.src = urls[idx % urls.length]; idx++;
   }
   function restartSlides() {
-    clearInterval(slideTimer);
+    clearInterval(slideTimer); slideTimer = null;
     if (!urls.length) return;
     showNext();
-    if (urls.length > 1) slideTimer = setInterval(showNext, S.interval * 1000);
+    if (urls.length > 1 && shown) slideTimer = setInterval(showNext, S.interval * 1000);
   }
   // Shrink big camera photos so storage stays small and fades stay smooth.
   async function shrink(file) {
@@ -458,11 +466,24 @@
   /* ---------- switching between Nightstand and Encore ----------
      Swipe DOWN anywhere (not in Settings, not starting at the top/bottom edge where iPadOS has its own gestures)
      goes back to Encore. In Encore, swiping UP comes here. The Home Screen icon reopens whichever app was used last. */
-  try { localStorage.setItem("standby.app", "nightstand"); } catch (e) {}
+  // Embedded, Encore owns standby.app and slides the sheet away when we ask; on its own, go to Encore's page.
+  if (!embedded) try { localStorage.setItem("standby.app", "nightstand"); } catch (e) {}
   function toEncore() {
+    if (embedded) { parent.postMessage({ type: "nightstand", close: true }, location.origin); return; }
     try { localStorage.setItem("standby.app", "encore"); } catch (e) {}
     location.assign("../");
   }
+  if (embedded) window.addEventListener("message", e => {
+    if (e.source !== parent || e.origin !== location.origin || !e.data || e.data.type !== "encore") return;
+    const wasShown = shown;
+    shown = !!e.data.shown; asleep = !!e.data.asleep;
+    if (shown && !wasShown) {
+      tick(); $("secFill").style.transition = "none";      // catch up at once, no sweep of the seconds bar
+      if (urls.length > 1 && !slideTimer) slideTimer = setInterval(showNext, S.interval * 1000);
+    }
+    if (!shown) { clearInterval(slideTimer); slideTimer = null; closeSheet(); document.body.classList.remove("ui"); }
+    requestWake();
+  });
   let vs = null;
   function vStart(x, y, target) {
     const edge = y < 56 || y > window.innerHeight - 56;

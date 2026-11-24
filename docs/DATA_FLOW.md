@@ -28,9 +28,20 @@ iPadOS; may start on a button, whose click is then cancelled):
 
 ```
 swipe DOWN ─▶ Spotify screen open? nothing : connected? library.open() : Connect pop-up
-swipe UP   ─▶ Spotify screen open? library.close() : standby.app = "nightstand" → go to nightstand/
-Nightstand: swipe DOWN (touch events, because its pager scrolls natively) ─▶ standby.app = "encore" → go to ../
+swipe UP   ─▶ Spotify screen open? library.close() : setNightstand(true) → Nightstand sheet slides up
+Nightstand: swipe DOWN (touch events, because its pager scrolls natively) ─▶ postMessage {type:"nightstand", close}
+            ─▶ Encore: setNightstand(false) → the sheet slides back down
 ```
+
+**Nightstand sheet.** Nightstand is an iframe (`nightstand/?embed=1`, `#nsFrame`) loaded when Encore starts and kept
+above everything but the sleep screen. `:root.ns-up` puts it up: it slides from the bottom in .45 s `var(--ease)` once
+the swipe ends (a fade with Reduce Motion). `setNightstand(up)` saves `standby.app`, makes the rest of Encore `inert`,
+rests Encore's wallpaper slideshow while covered, and posts `{type:"encore", shown, asleep}` to the iframe, which then
+rests its clock (once a minute) and slideshow while down and lets go of the screen while asleep. Encore keeps polling
+Spotify underneath, so Auto mode still moves to Player out of sight. Embedded, Nightstand runs no sleep timer of its
+own (Encore's sleep screen covers the sheet) and doesn't write `standby.app`. Opened on its own (`nightstand/`, old
+bookmarks) it works as before: swipe down goes to `../`. On start, `route.js` adds `ns-up` before the first paint when
+`standby.app` is "nightstand", so the Home Screen icon reopens with the sheet already up, no slide.
 Inside the Spotify screen the library column scrolls, so swipe up on the now-playing side, the header or the handle.
 Moving the widget needs a **press-and-hold (0.4 s)** first, so a quick flick across the widget is a swipe, not a drag.
 
@@ -124,7 +135,7 @@ See [AUTHENTICATION.md](AUTHENTICATION.md).
 | `encore.settings` | `main.js` (debounced 150 ms) | Every option: mode, widget sizes, widget position (`wPos` + fractions `wX`/`wY`), clock, photo look and rotation, album-art margin |
 | `encore.settings.tab` | `settings.js` | Last open settings tab |
 | `encore.wall.state` | `engine.js` | Current photo, shuffle bag, history, last change time |
-| `standby.app` | `main.js`, `nightstand.js` | Last-used app |
+| `standby.app` | `main.js` (and `nightstand.js` when opened on its own) | Was the Nightstand sheet up last ("nightstand" / "encore") |
 | IndexedDB `encore-wallpapers` | `library.js` | Collections and images (screen-sized copy + thumbnail + analysis + `hidden` flag) |
 | IndexedDB `encore-lyrics` | `lrclib.js` | Lyrics per Spotify track id (max 200, oldest removed first) |
 | `nightstand*`, IndexedDB `nightstand` | `nightstand.js` | Nightstand settings, weather cache, photos |
