@@ -21,6 +21,11 @@ config.local.js
 .vscode/
 .idea/
 
+# --- Session notes and design-review screenshots (local only, not part of the app) ---
+/HANDOFF*.md
+/IPAD-TEST.md
+.impeccable/
+
 # --- Operating-system clutter ---
 Thumbs.db
 desktop.ini

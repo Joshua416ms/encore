@@ -35,18 +35,9 @@ export async function listCollections() {
   const all = await done((await store("collections")).getAll());
   return all.sort((a, b) => b.updated - a.updated);
 }
-export async function getCollection(id) {
-  if (!id) return null;
-  return (await done((await store("collections")).get(id))) || null;
-}
 export async function createCollection(name) {
   const c = { id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2),
     name: name || "Untitled collection", created: Date.now(), updated: Date.now(), count: 0, covers: [] };
-  await done((await store("collections", "readwrite")).put(c));
-  return c;
-}
-export async function saveCollection(c) {
-  c.updated = Date.now();
   await done((await store("collections", "readwrite")).put(c));
   return c;
 }
@@ -78,21 +69,6 @@ export async function addImage(collectionId, rec) {
   }
   await finished(t);
   return key;
-}
-export async function removeImage(key) {
-  const db = await open();
-  const t = db.transaction(["collections", "images"], "readwrite");
-  const img = await done(t.objectStore("images").get(key));
-  if (!img) return;
-  t.objectStore("images").delete(key);
-  const c = await done(t.objectStore("collections").get(img.collectionId));
-  if (c) {
-    c.count = Math.max(0, (c.count || 1) - 1);
-    c.covers = (c.covers || []).filter(k => k !== key);
-    c.updated = Date.now();
-    t.objectStore("collections").put(c);
-  }
-  await finished(t);
 }
 
 /** Keys of all the photos in a collection, in the order they were added. (Hiding photos was removed 2026-11-23:
