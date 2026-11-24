@@ -7,6 +7,8 @@ on:
     branches: [main]
     paths: ["app/**", ".github/workflows/pages.yml"]
   workflow_dispatch: {}   # adds a "Run workflow" button in the Actions tab
+  # A failed run can't be fixed with "Re-run": the re-run adds a second "github-pages" package and Deploy refuses
+  # both. Start a new run with "Run workflow" instead.
 
 # Least privilege for the automation token: read the code, write to Pages, prove identity to Pages.
 permissions:
