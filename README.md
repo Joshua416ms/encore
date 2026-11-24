@@ -4,8 +4,9 @@ A full-screen iPad photo frame with a Spotify music widget. Swipe **left and rig
 
 1. **Photos**: your own photo collections (for example images saved from Cosmos) rotate full screen, with a resizable Spotify widget and clock in the corners.
 2. **Album artwork**: the current Spotify cover, as large as the screen allows.
-3. **Lyrics** (optional): only while the current song has lyrics.
-4. **Clock**: large time and date.
+3. **Player**: the whole cover on the left; the song, a seek bar and the playback controls (with shuffle and repeat) on the right, on a dark tint taken from the cover.
+4. **Lyrics** (optional): only while the current song has lyrics.
+5. **Clock**: large time and date.
 
 Swipe **down** for the **Spotify screen**: big playback controls, volume, Up next, your playlists, saved albums and
 recently played. Tap a song in Up next to jump to it. Swipe **up** to close it.
@@ -28,8 +29,9 @@ It's a web app you add to the iPad Home Screen. There's no server, no build step
 | Part | Status |
 |---|---|
 | Spotify sign-in, live track info, widget | Built and tested with a real account |
-| Photo collections (import from Files), rotation, three display modes | Built and tested in the browser |
+| Photo collections (import from Files), rotation, display modes | Built and tested in the browser |
 | Nightstand (clock, weather, calendar, photos, night mode) | Built and working |
+| Player screen (cover + controls) | Built and tested in the browser with sample data; not yet with a real account or on the iPad |
 | Lyrics (optional, off by default) | Built and tested; community-sourced via LRCLIB |
 | Spotify screen (swipe down), vertical swipes | Built and tested in the browser with sample data; not yet with a real account |
 | Automatic screen switching, night mode, accent colours, photo extras | Built and tested in the browser |

@@ -222,10 +222,11 @@ body.ui .gear,body.ui.has-photos.mode-photos .nav{opacity:1;pointer-events:auto}
 body.ui.mode-photos .w-size:not(.off){opacity:1;pointer-events:auto}
 
 /* ---------- display modes ----------
-   <body class="mode-photos | mode-artwork | mode-clock"> decides which layer is visible; CSS crossfades them. */
-.art-stage,.clock-stage{position:fixed;inset:0;z-index:4;opacity:0;visibility:hidden;
+   <body class="mode-photos | mode-artwork | mode-player | mode-lyrics | mode-clock"> decides which layer is visible;
+   CSS crossfades them. (Lyrics has its own rule further down.) */
+.art-stage,.player-stage,.clock-stage{position:fixed;inset:0;z-index:4;opacity:0;visibility:hidden;
   transition:opacity .6s var(--ease),visibility 0s linear .6s}
-body.mode-artwork .art-stage,body.mode-clock .clock-stage{opacity:1;visibility:visible;transition:opacity .6s var(--ease),visibility 0s}
+body.mode-artwork .art-stage,body.mode-player .player-stage,body.mode-clock .clock-stage{opacity:1;visibility:visible;transition:opacity .6s var(--ease),visibility 0s}
 .slot,.empty-hint{transition:opacity .5s var(--ease)}
 body:not(.mode-photos) .slot,body:not(.mode-photos) .empty-hint,body:not(.mode-photos) .nav{opacity:0;pointer-events:none}
 body:not(.mode-photos) .slot > *{pointer-events:none}
@@ -249,6 +250,61 @@ body:not(.mode-photos) .slot > *{pointer-events:none}
 .stage-logo{position:absolute;left:max(16px,calc(env(safe-area-inset-left,0px) + 16px));bottom:calc(env(safe-area-inset-bottom,0px) + 14px);
   display:block;padding:6px;border-radius:8px}
 .stage-logo img{display:block;width:70px;height:auto;filter:drop-shadow(0 1px 6px rgba(0,0,0,.5))}
+
+/* Player — the whole cover on the left (never cropped, corners of at most 8 px), the song and its controls on the
+   right. The right column is exactly as tall as the cover: song text at the top edge, controls at the bottom edge.
+   Background: the cover's edge colours (--fill-l / --fill-r from artmode.js), darkened, so it changes per song. */
+.player-stage{--pl-pad:9vmin;--cover:min(calc(100dvh - 2 * var(--pl-pad)),46dvw);
+  display:flex;align-items:center;justify-content:center;gap:clamp(32px,5.5vw,88px);
+  padding:var(--pl-pad) max(7vw,calc(env(safe-area-inset-right,0px) + 24px)) var(--pl-pad) max(7vw,calc(env(safe-area-inset-left,0px) + 24px));
+  background:linear-gradient(135deg,var(--fill-l,#15161a),var(--fill-r,#050506))}
+.player-stage::before{content:"";position:absolute;inset:0;background:rgba(0,0,0,.52);transition:background .6s var(--ease)}
+.pl-art{position:relative;flex:none;width:var(--cover);height:var(--cover);border-radius:8px;overflow:hidden;
+  box-shadow:0 24px 70px rgba(0,0,0,.45)}
+.pl-art-layer{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity .9s var(--ease)}
+.pl-art-layer.on{opacity:1}
+.pl-side{position:relative;flex:1 1 0;min-width:0;max-width:600px;height:var(--cover);
+  display:flex;flex-direction:column;justify-content:space-between;gap:24px}
+.pl-logo{display:block;width:max-content;margin:-6px 0 0 -6px;padding:6px;border-radius:8px}
+.pl-logo img{display:block;width:clamp(70px,7vw,92px);height:auto}
+.pl-meta{margin-top:clamp(14px,2.4vh,28px);cursor:pointer;transition:opacity .4s var(--ease)}
+.pl-meta.swap{opacity:0}
+.pl-title{margin:0;font-weight:700;font-size:clamp(28px,3.6vw,52px);line-height:1.08;letter-spacing:-.022em;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;text-wrap:balance}
+.pl-artist{margin:.45em 0 0;font-weight:500;font-size:clamp(19px,2.2vw,30px);line-height:1.2;color:var(--fg-2);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl-album{margin:.3em 0 0;font-weight:400;font-size:clamp(15px,1.6vw,22px);line-height:1.25;color:var(--fg-3);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl-album:empty{display:none}
+.pl-meta.full .pl-title{-webkit-line-clamp:unset;display:block}
+.pl-meta.full .pl-artist,.pl-meta.full .pl-album{white-space:normal}
+.pl-bottom{display:flex;flex-direction:column;gap:clamp(14px,2.4vh,26px)}
+.pl-progress .bar{height:28px}
+.pl-progress .bar-track{height:5px;border-radius:3px;background:rgba(255,255,255,.2)}
+.pl-progress .bar-fill{background:var(--fg)}
+.pl-progress .bar.drag .bar-track{height:8px}
+.pl-progress .times{margin-top:4px;font-size:clamp(13px,1.15vw,16px);color:var(--fg-3)}
+.pl-controls{display:flex;align-items:center;justify-content:space-between;max-width:440px}
+.pl-controls .ctl{width:60px;height:60px}
+.pl-controls .ctl svg{width:34px;height:34px}
+.pl-controls .ctl.extra svg{width:26px;height:26px}
+.pl-controls .ctl.extra.on::after{bottom:6px}
+.pl-controls .ctl .one{top:12px;right:12px;font-size:10px}
+.pl-controls .ctl.play{width:84px;height:84px}
+.pl-controls .ctl.play svg{width:36px;height:36px}
+.pl-status{margin:0;min-height:1.4em;font-size:14px;line-height:1.4;color:var(--fg-2)}
+.pl-status:empty{visibility:hidden}
+/* Nothing playing / not connected: only the message, centred */
+.pl-msg{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%)}
+.player-stage:not(.empty) .pl-msg,.player-stage.empty .pl-art,.player-stage.empty .pl-side{display:none}
+/* Portrait: cover on top, the rest below it */
+@media (orientation:portrait){
+  .player-stage{--cover:min(calc(100dvw - 2 * max(7vw,24px)),50dvh);flex-direction:column;gap:clamp(24px,4vh,48px)}
+  .pl-side{flex:none;width:var(--cover);max-width:none;height:auto}
+  .pl-top{display:flex;flex-direction:column-reverse;gap:14px}
+  .pl-meta{margin-top:0}
+  .pl-controls{max-width:none}
+}
 
 /* Mode 3 — clock over the current photo, darkened */
 .clock-stage{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
@@ -427,6 +483,9 @@ body.mode-lyrics .lyrics-stage{opacity:1;visibility:visible;transition:opacity .
 :root.night .art-fill{opacity:.25}
 :root.night .stage-art{box-shadow:none}
 :root.night .lyrics-stage::before{background:rgba(0,0,0,.85)}
+:root.night .player-stage::before{background:rgba(0,0,0,.86)}
+:root.night .pl-art{box-shadow:none}
+:root.night .pl-progress .bar-track{background:var(--fg-4)}
 :root.night .lyrics-lines li{color:rgba(255,74,61,.28)}
 :root.night .lyrics-lines li.past{color:rgba(255,74,61,.4)}
 :root.night .lyrics-lines li.on,:root.night .lyrics-lines.plain li{color:#ff4a3d}

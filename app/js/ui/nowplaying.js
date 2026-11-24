@@ -8,7 +8,7 @@ export function formatTime(ms) {
 }
 
 /** Two stacked <img> layers; the new image is fully decoded before it fades in, so there is never a blank frame. */
-function crossfader(a, b, onHasImage) {
+export function crossfader(a, b, onHasImage) {
   let front = a, current = undefined, ticket = 0;
   return async url => {
     if (url === current) return;
@@ -49,10 +49,8 @@ export function statusMessage(err) {
 
 export function createNowPlaying(playback, opts = {}) {
   const art = crossfader($("artA"), $("artB"), has => $("artWrap").classList.toggle("has", has));
-  const bar = $("bar"), fill = $("barFill"), knob = $("barKnob");
   let currentTrackId = undefined;
   let premiumBlocked = false;
-  let dragging = false, dragRatio = 0;
 
   /* ---------- controls ---------- */
   $("playBtn").onclick = () => playback.togglePlay();
@@ -64,51 +62,10 @@ export function createNowPlaying(playback, opts = {}) {
   $("meta").addEventListener("click", () => $("meta").classList.toggle("full"));
   $("meta").addEventListener("keydown", e => { if (e.key === "Enter") $("meta").classList.toggle("full"); });
 
-  function canSeek() {
-    const s = playback.state;
-    return !!(s && s.track && s.track.duration && !premiumBlocked && !s.disallows.seeking && !(s.device && s.device.restricted));
-  }
-  function ratioAt(x) {
-    const r = bar.getBoundingClientRect();
-    return Math.min(1, Math.max(0, (x - r.left) / r.width));
-  }
-  bar.addEventListener("pointerdown", e => {
-    if (!canSeek()) return;
-    dragging = true; dragRatio = ratioAt(e.clientX);
-    bar.classList.add("drag"); bar.setPointerCapture(e.pointerId);
-    paintProgress();
-    e.stopPropagation();
-  });
-  bar.addEventListener("pointermove", e => { if (dragging) { dragRatio = ratioAt(e.clientX); paintProgress(); } });
-  const endDrag = e => {
-    if (!dragging) return;
-    dragging = false; bar.classList.remove("drag");
-    const s = playback.state;
-    if (s && s.track) playback.seek(dragRatio * s.track.duration);
-    if (e) e.stopPropagation();
-  };
-  bar.addEventListener("pointerup", endDrag);
-  bar.addEventListener("pointercancel", () => { dragging = false; bar.classList.remove("drag"); });
-  bar.addEventListener("click", e => e.stopPropagation());
-  bar.addEventListener("keydown", e => {
-    if (!canSeek()) return;
-    const step = e.key === "ArrowRight" ? 10000 : e.key === "ArrowLeft" ? -10000 : 0;
-    if (step) { e.preventDefault(); playback.seek(playback.position() + step); }
-  });
-
-  /* ---------- progress (local clock between polls) ---------- */
-  function paintProgress() {
-    const s = playback.state;
-    const dur = s && s.track ? s.track.duration : 0;
-    const pos = dragging ? dragRatio * dur : playback.position();
-    const pct = dur ? (pos / dur) * 100 : 0;
-    fill.style.width = pct + "%";
-    knob.style.left = pct + "%";
-    bar.setAttribute("aria-valuenow", Math.round(pct));
-    $("elapsed").textContent = formatTime(pos);
-    $("remaining").textContent = dur ? "-" + formatTime(dur - pos) : "0:00";
-  }
-  setInterval(() => { if (!document.hidden) paintProgress(); }, 250);
+  const isLocked = () => premiumBlocked;
+  const seek = createSeekBar({ bar: $("bar"), fill: $("barFill"), knob: $("barKnob"), elapsed: $("elapsed"), remaining: $("remaining") },
+    playback, isLocked);
+  const paintProgress = seek.paint;
 
   /* ---------- render from state ---------- */
   function render(state, err) {
@@ -141,26 +98,10 @@ export function createNowPlaying(playback, opts = {}) {
     $("device").title = dev ? (DEVICE_LABEL[dev.type] || dev.type) : "";
 
     // buttons: enabled only when Spotify says the action is allowed
-    const d = (state && state.disallows) || {};
     const restricted = !!(dev && dev.restricted);
-    const locked = premiumBlocked || restricted;
-    const playBtn = $("playBtn");
-    const playing = !!(state && state.isPlaying);
-    playBtn.classList.toggle("playing", playing);
-    playBtn.setAttribute("aria-label", playing ? "Pause" : "Play");
-    playBtn.disabled = locked || (playing ? !!d.pausing : !!(t && d.resuming));
-    $("prevBtn").disabled = locked || !t || !!d.skipping_prev;
-    $("nextBtn").disabled = locked || !t || !!d.skipping_next;
-    const sh = $("shuffleBtn");
-    sh.disabled = locked || !t || !!d.toggling_shuffle;
-    sh.setAttribute("aria-pressed", String(!!(state && state.shuffle)));
-    sh.classList.toggle("on", !!(state && state.shuffle));
-    const rp = $("repeatBtn"), mode = state ? state.repeat : "off";
-    rp.disabled = locked || !t || !!(d.toggling_repeat_context && d.toggling_repeat_track);
-    rp.classList.toggle("on", mode !== "off");
-    rp.classList.toggle("repeat-one", mode === "track");
-    rp.setAttribute("aria-label", `Repeat: ${mode === "track" ? "this song" : mode === "context" ? "on" : "off"}`);
-    bar.classList.toggle("locked", !canSeek());
+    paintControls({ play: $("playBtn"), prev: $("prevBtn"), next: $("nextBtn"), shuffle: $("shuffleBtn"), repeat: $("repeatBtn") },
+      state, premiumBlocked || restricted);
+    seek.bar.classList.toggle("locked", !seek.canSeek());
 
     // status line
     let msg = err && err.reason !== "NOT_CONNECTED" ? statusMessage(err) : "";
@@ -174,5 +115,77 @@ export function createNowPlaying(playback, opts = {}) {
     paintProgress();
   }
 
-  return { render, setPremiumBlocked(v) { premiumBlocked = v; } };
+  return { render, setPremiumBlocked(v) { premiumBlocked = v; }, get premiumBlocked() { return premiumBlocked; } };
+}
+
+/** Sets the play/skip/shuffle/repeat buttons from the playback state. Shared by the widget, the Player screen and
+ *  the Spotify screen's look: a button is enabled only when Spotify says the action is allowed. */
+export function paintControls({ play, prev, next, shuffle, repeat }, state, locked) {
+  const t = state && state.track, d = (state && state.disallows) || {};
+  const playing = !!(state && state.isPlaying);
+  play.classList.toggle("playing", playing);
+  play.setAttribute("aria-label", playing ? "Pause" : "Play");
+  play.disabled = locked || (playing ? !!d.pausing : !!(t && d.resuming));
+  prev.disabled = locked || !t || !!d.skipping_prev;
+  next.disabled = locked || !t || !!d.skipping_next;
+  shuffle.disabled = locked || !t || !!d.toggling_shuffle;
+  shuffle.setAttribute("aria-pressed", String(!!(state && state.shuffle)));
+  shuffle.classList.toggle("on", !!(state && state.shuffle));
+  const mode = state ? state.repeat : "off";
+  repeat.disabled = locked || !t || !!(d.toggling_repeat_context && d.toggling_repeat_track);
+  repeat.classList.toggle("on", mode !== "off");
+  repeat.classList.toggle("repeat-one", mode === "track");
+  repeat.setAttribute("aria-label", `Repeat: ${mode === "track" ? "this song" : mode === "context" ? "on" : "off"}`);
+}
+
+/** A song-position bar you can tap or drag to seek, with elapsed and remaining time. It repaints itself 4× a second
+ *  from playback.position() (a local clock between Spotify polls). isLocked() = Premium missing. */
+export function createSeekBar({ bar, fill, knob, elapsed, remaining }, playback, isLocked) {
+  let dragging = false, dragRatio = 0;
+
+  function canSeek() {
+    const s = playback.state;
+    return !!(s && s.track && s.track.duration && !isLocked() && !s.disallows.seeking && !(s.device && s.device.restricted));
+  }
+  function ratioAt(x) {
+    const r = bar.getBoundingClientRect();
+    return Math.min(1, Math.max(0, (x - r.left) / r.width));
+  }
+  bar.addEventListener("pointerdown", e => {
+    if (!canSeek()) return;
+    dragging = true; dragRatio = ratioAt(e.clientX);
+    bar.classList.add("drag"); bar.setPointerCapture(e.pointerId);
+    paint();
+    e.stopPropagation();
+  });
+  bar.addEventListener("pointermove", e => { if (dragging) { dragRatio = ratioAt(e.clientX); paint(); } });
+  bar.addEventListener("pointerup", e => {
+    if (!dragging) return;
+    dragging = false; bar.classList.remove("drag");
+    const s = playback.state;
+    if (s && s.track) playback.seek(dragRatio * s.track.duration);
+    e.stopPropagation();
+  });
+  bar.addEventListener("pointercancel", () => { dragging = false; bar.classList.remove("drag"); });
+  bar.addEventListener("click", e => e.stopPropagation());
+  bar.addEventListener("keydown", e => {
+    if (!canSeek()) return;
+    const step = e.key === "ArrowRight" ? 10000 : e.key === "ArrowLeft" ? -10000 : 0;
+    if (step) { e.preventDefault(); playback.seek(playback.position() + step); }
+  });
+
+  function paint() {
+    const s = playback.state;
+    const dur = s && s.track ? s.track.duration : 0;
+    const pos = dragging ? dragRatio * dur : playback.position();
+    const pct = dur ? Math.min(100, (pos / dur) * 100) : 0;
+    fill.style.width = pct + "%";
+    knob.style.left = pct + "%";
+    bar.setAttribute("aria-valuenow", Math.round(pct));
+    elapsed.textContent = formatTime(dur ? pos : 0);
+    remaining.textContent = dur ? "-" + formatTime(dur - pos) : "0:00";
+  }
+  setInterval(() => { if (!document.hidden && bar.offsetParent !== null) paint(); }, 250);
+
+  return { bar, paint, canSeek };
 }

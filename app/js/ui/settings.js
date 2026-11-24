@@ -12,7 +12,7 @@ const DEVICE_ICON = {
 const SPEAKER = '<rect x="5" y="3" width="14" height="18" rx="2.5"/><circle cx="12" cy="14.5" r="3"/><circle cx="12" cy="7.5" r="1"/>';
 
 export const DEFAULTS = {
-  // Display mode (swipe or dots): "photos" | "artwork" | "clock"
+  // Display mode (swipe or dots): "photos" | "artwork" | "player" | "lyrics" | "clock"
   mode: "photos",
   // Spotify widget — wScale multiplies every size below (the +/− buttons change it)
   wScale: 1,

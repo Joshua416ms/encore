@@ -6,6 +6,7 @@
 //   spotify/playback ──onChange(state)──▶ main ──▶ nowPlaying.render (the widget's contents)
 //                                             └─▶ autoMode.onPlayback  (picks the screen: album art / photos / clock)
 //   nowPlaying ──onTrack(track)──▶ main ──▶ artMode.update (cover; reports its accent colour back)
+//                                       └─▶ player.update  (Player screen: cover and song text)
 //                                       └─▶ lyrics.update  (LRCLIB lyrics, only when turned on)
 //   modes ──onVertical("down"|"up")──▶ main ──▶ library.open/close (Spotify screen) or go to Nightstand
 //   every minute ──▶ night mode on/off, collection for this time of day
@@ -23,6 +24,7 @@ import { createPhotos } from "./ui/photos.js";
 import { createWallpaperEngine } from "./wallpapers/engine.js";
 import { createModes } from "./ui/modes.js";
 import { createArtMode } from "./ui/artmode.js";
+import { createPlayerMode } from "./ui/playermode.js";
 import { createLyricsMode } from "./ui/lyricsmode.js";
 import { createAutoMode } from "./ui/automode.js";
 import { createLibrary } from "./ui/library.js";
@@ -125,6 +127,7 @@ const playback = createPlayback(client, (state, err) => {
     return;
   }
   nowPlaying.render(state, err);
+  player.render(state, err);
   library.render(state);
   if (!err) autoMode.onPlayback(state);
   if (settingsUI.isOpen()) settingsUI.sync();
@@ -141,8 +144,9 @@ const artMode = createArtMode({ onAccent: c => { artAccent = c; applyAccent(); }
 const lyrics = createLyricsMode({ playback, settings, onAvailability: lyricsAvailability });
 let lastTrack = null;
 const nowPlaying = createNowPlaying(playback, {
-  onTrack: t => { lastTrack = t; artMode.update(t, true); lyrics.update(t); library.onTrack(); },
+  onTrack: t => { lastTrack = t; artMode.update(t, true); player.update(t, true); lyrics.update(t); library.onTrack(); },
 });
+const player = createPlayerMode({ playback, isPremiumBlocked: () => nowPlaying.premiumBlocked });
 
 // The Spotify screen (swipe down). Reconnecting is needed once for sign-ins made before it existed.
 const library = createLibrary({ client, playback, toast, missingScopes, onReconnect: () => openConnect() });
@@ -210,7 +214,7 @@ const settingsUI = createSettings({
 function setConnected(on) {
   $("widget").classList.toggle("disconnected", !on);
   $("widgetConnect").hidden = on;
-  if (!on) { artMode.update(null, false); lyrics.update(null); autoMode.onPlayback(null); }
+  if (!on) { artMode.update(null, false); player.update(null, false); player.render(null); lyrics.update(null); autoMode.onPlayback(null); }
   if (on && !document.hidden) playback.start();
   if (!on) playback.stop();
 }
@@ -277,7 +281,7 @@ document.addEventListener("click", e => {
 });
 document.addEventListener("keydown", e => {
   if (e.key === "Escape") { settingsUI.close(); closeConnect(); library.close(); }
-  if (e.target.closest("input, select, textarea, #bar")) return;
+  if (e.target.closest("input, select, textarea, .bar")) return;
   if (e.key === "ArrowRight") modes.step(1);
   if (e.key === "ArrowLeft") modes.step(-1);
   if (e.key === "ArrowDown") engine.next();

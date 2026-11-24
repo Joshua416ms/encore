@@ -1,12 +1,13 @@
-// Display modes: photos + music widget, full-screen album artwork, lyrics (only when turned on AND the song has
-// lyrics), clock.
-// The current mode is a class on <body> (mode-photos / mode-artwork / mode-lyrics / mode-clock); CSS shows the layer.
+// Display modes: photos + music widget, full-screen album artwork, player (cover + controls), lyrics (only when turned
+// on AND the song has lyrics), clock.
+// The current mode is a class on <body> (mode-photos / mode-artwork / mode-player / mode-lyrics / mode-clock); CSS
+// shows the layer.
 // Navigation: horizontal swipe anywhere that isn't a control, or tap a dot. The choice is saved in settings.
 // Vertical swipes are reported to main.js (onVertical): down opens the Spotify screen, up goes to Nightstand.
 // They must start away from the top and bottom edges, where iPadOS has its own gestures (Control Centre, Home).
 // Every change says who made it: "user" (swipe, dot, keyboard) or "auto" (automatic switching), so automatic
 // switching can step back when you choose a screen yourself.
-export const ALL_MODES = ["photos", "artwork", "lyrics", "clock"];
+export const ALL_MODES = ["photos", "artwork", "player", "lyrics", "clock"];
 
 // Where a swipe must NOT start: anything you tap or drag on purpose.
 const NO_SWIPE = "button, a, input, select, textarea, label, .bar, #sheet, #connect, .dots, .w-size, #sleepScreen";

@@ -1,10 +1,10 @@
 // Automatic screen switching: Encore picks the display mode for you, like iPad StandBy.
-//   • Music playing                              → Album art (Lyrics also counts as a music screen: left alone)
+//   • Music playing                              → Player (Album art and Lyrics also count as music screens: left alone)
 //   • Paused/stopped for settings.autoPhotosAfter → Photos, or the Clock at night
 //   • You chose a screen yourself (swipe/dot)     → automatic switching waits 30 minutes,
 //                                                   or until the music starts/stops, whichever comes first
 const OVERRIDE_MS = 30 * 60 * 1000;
-const MUSIC_SCREENS = ["artwork", "lyrics"];
+const MUSIC_SCREENS = ["artwork", "player", "lyrics"];
 
 export function createAutoMode({ settings, modes, isNight }) {
   let playing = false;
@@ -16,7 +16,7 @@ export function createAutoMode({ settings, modes, isNight }) {
     let target;
     if (playing) {
       if (MUSIC_SCREENS.includes(settings.mode)) return;          // already on a music screen
-      target = "artwork";
+      target = "player";
     } else {
       const stoppedFor = lastPlayingAt ? Date.now() - lastPlayingAt : Infinity;
       if (stoppedFor < settings.autoPhotosAfter * 60000) return;  // just paused: give it a few minutes

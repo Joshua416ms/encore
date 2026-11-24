@@ -13,6 +13,7 @@ The screen is a **photo frame first**. Three display modes are reached by swipin
 |---|---|
 | `photos` | Your imported Cosmos photos, full screen and rotating, with the Spotify widget and clock in corners |
 | `artwork` | The current Spotify cover, whole and as large as the screen allows (never cropped), plus the Spotify logo |
+| `player` | Whole cover on the left; title, artist, album, seek bar, ⏮ ⏯ ⏭, shuffle and repeat on the right; background is the cover's edge colours, darkened |
 | `lyrics` | Lyrics of the current song (only when turned on **and** the song has lyrics) |
 | `clock` | Large time and date over the darkened current photo |
 
@@ -27,13 +28,14 @@ or, when it's closed, goes to the separate Nightstand app (which comes back with
 │      ▲ swipe / dots             ┌─ photos: backdrop (wallpapers/engine.js)              │
 │      │                          │          + corner slots (ui/layout.js) ─ widget, clock│
 │      │                          ├─ artwork: art stage (ui/artmode.js)                   │
+│      │                          ├─ player:  player stage (ui/playermode.js)             │
 │      │                          └─ clock:   clock stage (main.js tickClock)             │
 │                                                                                         │
 │  ui/settings.js (tabs: Photos · Music · Display · Account) ──onChange──▶ main.js        │
 │  ui/photos.js ─▶ wallpapers/importer.js ─▶ wallpapers/library.js (IndexedDB)           │
 │                                                                                         │
 │  ui/nowplaying.js ◀── state ── spotify/playback.js ─▶ spotify/client.js ─▶ auth.js      │
-│        └── onTrack(track) ──▶ ui/artmode.js                                             │
+│        └── onTrack(track) ──▶ ui/artmode.js, ui/playermode.js                           │
 └───────────────────────────────────────────┬─────────────────────────────────────────────┘
                                      HTTPS  ▼
                      api.spotify.com · accounts.spotify.com · i.scdn.co (cover images)
@@ -47,8 +49,9 @@ or, when it's closed, goes to the separate Nightstand app (which comes back with
 | `ui/modes.js` | Current mode, dots, horizontal swipes; reports vertical swipes (`onVertical`) | `settings` (saves `mode`) |
 | `ui/library.js` | Spotify screen: now playing with large controls and volume; Up next, playlists, saved albums, recently played; song lists | `client`, `playback` |
 | `ui/layout.js` | Widget size (CSS variables), free position of the dock (fractions `wX`/`wY`), press-and-hold dragging, +/− size, clock placement, readability tint | `settings` |
-| `ui/nowplaying.js` | Widget contents and Spotify buttons | `playback` |
-| `ui/automode.js` | Automatic screen switching (music → album art, stopped → photos, night → clock; your choice wins for 30 min) | `modes` (via `main`) |
+| `ui/nowplaying.js` | Widget contents and Spotify buttons; exports the shared `crossfader`, `paintControls` and `createSeekBar` | `playback` |
+| `ui/playermode.js` | Player screen: cover, song text, seek bar and controls (reuses the helpers from `nowplaying.js`) | `playback`, `nowplaying` |
+| `ui/automode.js` | Automatic screen switching (music → Player, stopped → photos, night → clock; your choice wins for 30 min) | `modes` (via `main`) |
 | `ui/lyricsmode.js` | Lyrics screen: renders lines, highlights the current one; reports whether the song has lyrics (`has`) | `lyrics/lrclib.js`, `playback` |
 | `lyrics/lrclib.js` | Looks up lyrics on LRCLIB, parses timestamps, caches results on the device | LRCLIB |
 | `ui/artmode.js` | Full-screen cover + edge-colour fill | receives tracks from `nowplaying` via `main` |

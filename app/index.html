@@ -48,6 +48,57 @@
   </a>
 </div>
 
+<!-- ===== Player (ui/playermode.js): whole cover on the left; song, position and controls on the right. ===== -->
+<div class="player-stage empty" id="playerStage" aria-label="Player">
+  <div class="pl-art">
+    <img class="pl-art-layer" id="plArtA" alt="" draggable="false">
+    <img class="pl-art-layer" id="plArtB" alt="" draggable="false">
+  </div>
+  <div class="pl-side">
+    <div class="pl-top">
+      <!-- Required Spotify attribution; also links to the song on Spotify -->
+      <a class="pl-logo" id="plLogo" href="https://open.spotify.com/" target="_blank" rel="noopener noreferrer" aria-label="Open in Spotify">
+        <img src="assets/spotify/Full_Logo_White_RGB.svg" alt="Spotify" width="70" height="19" draggable="false">
+      </a>
+      <div class="pl-meta" id="plMeta" tabindex="0" title="Tap to show the full title">
+        <h2 class="pl-title" id="plTitle"></h2>
+        <p class="pl-artist" id="plArtist"></p>
+        <p class="pl-album" id="plAlbum"></p>
+      </div>
+    </div>
+    <div class="pl-bottom">
+      <div class="pl-progress">
+        <div class="bar" id="plBar" role="slider" tabindex="0" aria-label="Song position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="bar-track"><div class="bar-fill" id="plBarFill"></div></div>
+          <div class="bar-knob" id="plBarKnob"></div>
+        </div>
+        <div class="times"><span id="plElapsed">0:00</span><span id="plRemaining">0:00</span></div>
+      </div>
+      <div class="pl-controls">
+        <button class="ctl extra" id="plShuffle" type="button" aria-label="Shuffle" aria-pressed="false">
+          <svg viewBox="0 0 24 24" class="stroke"><path d="M3 7h3.5c2 0 3.2 1 4.3 2.7l2.4 4.6c1.1 1.7 2.3 2.7 4.3 2.7H21M3 17h3.5c1.6 0 2.7-.6 3.6-1.7M13.9 8.7c.9-1.1 2-1.7 3.6-1.7H21M18 4l3 3-3 3M18 14l3 3-3 3"/></svg>
+        </button>
+        <button class="ctl" id="plPrev" type="button" aria-label="Previous track">
+          <svg viewBox="0 0 24 24" class="fill"><path d="M18 6.2v11.6c0 .8-.9 1.3-1.6.8L8.8 13a1.2 1.2 0 0 1 0-2l7.6-5.6c.7-.5 1.6 0 1.6.8z"/><rect x="5.6" y="5.6" width="2.4" height="12.8" rx="1.2"/></svg>
+        </button>
+        <button class="ctl play" id="plPlay" type="button" aria-label="Play">
+          <svg viewBox="0 0 24 24" class="fill icon-play"><path d="M8 5.9v12.2c0 .9 1 1.4 1.7.9l9.2-6.1a1.1 1.1 0 0 0 0-1.8L9.7 5c-.7-.5-1.7 0-1.7.9z"/></svg>
+          <svg viewBox="0 0 24 24" class="fill icon-pause"><rect x="6.5" y="5" width="4" height="14" rx="1.2"/><rect x="13.5" y="5" width="4" height="14" rx="1.2"/></svg>
+        </button>
+        <button class="ctl" id="plNext" type="button" aria-label="Next track">
+          <svg viewBox="0 0 24 24" class="fill"><path d="M6 6.2v11.6c0 .8.9 1.3 1.6.8l7.6-5.6a1.2 1.2 0 0 0 0-2L7.6 5.4C6.9 4.9 6 5.4 6 6.2z"/><rect x="16" y="5.6" width="2.4" height="12.8" rx="1.2"/></svg>
+        </button>
+        <button class="ctl extra" id="plRepeat" type="button" aria-label="Repeat: off">
+          <svg viewBox="0 0 24 24" class="stroke"><path d="M4 11V9a3 3 0 0 1 3-3h12M16 3l3 3-3 3M20 13v2a3 3 0 0 1-3 3H5M8 21l-3-3 3-3"/></svg>
+          <span class="one" aria-hidden="true">1</span>
+        </button>
+      </div>
+      <p class="pl-status" id="plStatus" role="status"></p>
+    </div>
+  </div>
+  <p class="stage-msg pl-msg" id="plMsg">Connect Spotify to show what's playing here.</p>
+</div>
+
 <!-- ===== Lyrics mode (ui/lyricsmode.js). Only when lyrics are on. With no lyrics, the album-art screen shows instead. ===== -->
 <div class="lyrics-stage" id="lyricsStage" aria-label="Lyrics">
   <div class="lyrics-view" id="lyricsView"><ol class="lyrics-lines" id="lyricsLines"></ol></div>
@@ -70,6 +121,7 @@
 <nav class="dots" id="dots" aria-label="Display mode">
   <button type="button" data-mode="photos" aria-label="Photos and music"></button>
   <button type="button" data-mode="artwork" aria-label="Album artwork"></button>
+  <button type="button" data-mode="player" aria-label="Player"></button>
   <button type="button" data-mode="lyrics" aria-label="Lyrics" hidden></button>
   <button type="button" data-mode="clock" aria-label="Clock"></button>
 </nav>
